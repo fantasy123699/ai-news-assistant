@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>&#x65B0;&#x95FB;&#x7BA1;&#x7406;</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <h1>&#x6398;&#x91D1;&#x5934;&#x6761;</h1>
+    <nav class="nav">
+      <button class="nav-btn active" data-view="news">&#x65B0;&#x95FB;</button>
+      <button class="nav-btn" data-view="profile">&#x6211;&#x7684;</button>
+      <button class="nav-btn" data-view="favorites">&#x6536;&#x85CF;</button>
+      <button class="nav-btn" data-view="history">&#x5386;&#x53F2;</button>
+    </nav>
+    <div class="side-title">&#x65B0;&#x95FB;&#x5206;&#x7C7B;</div>
+    <button class="cat active" data-id="">&#x5168;&#x90E8;&#x65B0;&#x95FB;</button>
+    <div id="categories"></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="auth-box">
+        <span id="loginStatus">&#x672A;&#x767B;&#x5F55;</span>
+        <button id="logout" class="hidden">&#x9000;&#x51FA;</button>
+      </div>
+    </header>
+
+    <section id="newsView" class="view two-col">
+      <section class="panel">
+        <div class="search-box news-search">
+          <input id="keyword" placeholder="&#x641C;&#x7D22;&#x65B0;&#x95FB;">
+          <button id="search">&#x641C;&#x7D22;</button>
+          <button id="reset">&#x91CD;&#x7F6E;</button>
+        </div>
+        <h2 id="title">&#x5168;&#x90E8;&#x65B0;&#x95FB;</h2>
+        <p id="meta" class="muted"></p>
+        <div id="list"></div>
+        <div class="pager">
+          <button id="prev">&#x4E0A;&#x4E00;&#x9875;</button>
+          <span id="page"></span>
+          <button id="next">&#x4E0B;&#x4E00;&#x9875;</button>
+        </div>
+      </section>
+
+      <section id="detail" class="panel detail-panel">
+        <h2>&#x8BF7;&#x9009;&#x62E9;&#x65B0;&#x95FB;</h2>
+      </section>
+    </section>
+
+    <section id="profileView" class="view hidden">
+      <section id="authPanel" class="auth-card">
+        <form id="loginForm" class="panel form-panel">
+          <h2>&#x767B;&#x5F55;</h2>
+          <input name="username" placeholder="&#x7528;&#x6237;&#x540D;" required>
+          <input name="password" type="password" placeholder="&#x5BC6;&#x7801;" required>
+          <button type="submit">&#x767B;&#x5F55;</button>
+          <button type="button" id="showRegister" class="link-btn">&#x8FD8;&#x6CA1;&#x6709;&#x8D26;&#x53F7;&#xFF1F;&#x53BB;&#x6CE8;&#x518C;</button>
+        </form>
+      </section>
+
+      <section id="userPanel" class="panel hidden">
+        <div id="userInfo"></div>
+        <form id="updateForm" class="form-row">
+          <input name="nickname" placeholder="&#x6635;&#x79F0;">
+          <input name="avatar" placeholder="&#x5934;&#x50CF; URL">
+          <input name="phone" placeholder="&#x624B;&#x673A;&#x53F7;">
+          <select name="gender">
+            <option value="">&#x6027;&#x522B;</option>
+            <option value="unknown">unknown</option>
+            <option value="male">male</option>
+            <option value="female">female</option>
+          </select>
+          <input name="bio" placeholder="&#x4E2A;&#x4EBA;&#x7B80;&#x4ECB;">
+          <button type="submit">&#x4FDD;&#x5B58;</button>
+        </form>
+      </section>
+    </section>
+
+    <section id="registerView" class="view hidden">
+      <section class="auth-card">
+        <form id="registerForm" class="panel form-panel">
+          <h2>&#x6CE8;&#x518C;</h2>
+          <input name="username" placeholder="&#x7528;&#x6237;&#x540D;" required>
+          <input name="password" type="password" placeholder="&#x5BC6;&#x7801;" required>
+          <input name="nickname" placeholder="&#x6635;&#x79F0;">
+          <input name="phone" placeholder="&#x624B;&#x673A;&#x53F7;&#xFF08;&#x53EF;&#x9009;&#xFF09;">
+          <button type="submit">&#x6CE8;&#x518C;</button>
+          <button type="button" id="showLogin" class="link-btn">&#x5DF2;&#x6709;&#x8D26;&#x53F7;&#xFF1F;&#x53BB;&#x767B;&#x5F55;</button>
+        </form>
+      </section>
+    </section>
+
+    <section id="favoritesView" class="view hidden">
+      <section class="panel">
+        <div class="section-head">
+          <h2>&#x6211;&#x7684;&#x6536;&#x85CF;</h2>
+          <button id="clearFavorites">&#x6E05;&#x7A7A;&#x6536;&#x85CF;</button>
+        </div>
+        <div id="favoritesList"></div>
+      </section>
+    </section>
+
+    <section id="historyView" class="view hidden">
+      <section class="panel">
+        <div class="section-head">
+          <h2>&#x6D4F;&#x89C8;&#x5386;&#x53F2;</h2>
+          <button id="clearHistory">&#x6E05;&#x7A7A;&#x5386;&#x53F2;</button>
+        </div>
+        <div id="historyList"></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="site-ai">
+    <div class="site-ai-tab">AI</div>
+    <section class="site-ai-panel">
+      <h2>AI &#x65B0;&#x95FB;&#x52A9;&#x624B;</h2>
+      <p class="muted">&#x8BD5;&#x8BD5;&#x8F93;&#x5165;&#xFF1A;&#x6211;&#x60F3;&#x77E5;&#x9053;&#x6700;&#x8FD1;&#x7684;&#x8D22;&#x7ECF;&#x65B0;&#x95FB;</p>
+      <div id="siteAiMessages" class="site-ai-messages"></div>
+      <form id="siteAiForm" class="site-ai-form">
+        <textarea id="siteAiInput" placeholder="&#x8F93;&#x5165;&#x4F60;&#x60F3;&#x4E86;&#x89E3;&#x7684;&#x65B0;&#x95FB;"></textarea>
+        <button type="submit">&#x53D1;&#x9001;</button>
+      </form>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
