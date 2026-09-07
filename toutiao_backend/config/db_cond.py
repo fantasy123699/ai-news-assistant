@@ -1,12 +1,14 @@
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession, create_async_engine
-# 数据库URL
-ASYNC_DATABASE_URL = "mysql+aiomysql://root:123456@localhost:3306/news_app?charset=utf8mb4"
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from config.settings import DATABASE_URL, DB_ECHO, DB_MAX_OVERFLOW, DB_POOL_SIZE
+
+
 # 创建异步引擎
 async_engine = create_async_engine(
- ASYNC_DATABASE_URL,
- echo=True, # 可选：输出SQL⽇志
- pool_size=10, # 设置连接池中保持的持久连接数
- max_overflow=20 # 设置连接池允许创建的额外连接数
+ DATABASE_URL,
+ echo=DB_ECHO, # 可选：输出SQL⽇志
+ pool_size=DB_POOL_SIZE, # 设置连接池中保持的持久连接数
+ max_overflow=DB_MAX_OVERFLOW # 设置连接池允许创建的额外连接数
 )
 # 创建异步会话⼯⼚
 AsyncSessionLocal = async_sessionmaker(
