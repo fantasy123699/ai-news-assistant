@@ -152,6 +152,7 @@
 - Added a non-root Python 3.12 application image.
 - Added a local Compose stack for the API, MySQL, and Redis with dependency health checks.
 - Added automatic first-volume schema and seed initialization.
+- Added the runtime dependency required by MySQL 8 SHA-2 password authentication.
 - Added an application liveness endpoint, test coverage, and concise start, stop, reset, and model-host instructions.
 - Added Compose configuration validation to the existing backend CI workflow.
 
