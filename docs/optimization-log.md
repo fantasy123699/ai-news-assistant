@@ -124,3 +124,23 @@
 
 - Add reviewed real model responses before tuning prompt wording or thresholds.
 - Semantic entailment scoring remains future work and should not be confused with deterministic citation coverage.
+
+## 2026-09-10 - Backend continuous integration
+
+### Scope
+
+- Added a GitHub Actions workflow for pushes to the working branch and `main`, plus pull requests.
+- Added pip dependency caching, read-only repository permissions, and a bounded job timeout.
+- Automated unit tests, citation-grounding fixtures, compilation, OpenAPI generation, and dependency checks.
+- Documented why external database, cache, and model services are not required by this unit-level workflow.
+
+### Verification
+
+- Every workflow command is rerun in the local Python 3.12 environment before commit.
+- The workflow YAML structure and changed-file scope are reviewed before upload.
+- The first remote workflow run is checked after the branch update.
+
+### Follow-up
+
+- Database integration tests with an isolated MySQL service remain a separate module.
+- A public status badge should be added after this workflow reaches the default branch.
