@@ -11,20 +11,48 @@ from schemas.user import PasswordUpdate, UserLogin, UserRegister, UserUpdate
 router = APIRouter(prefix="/user", tags=["User"])
 
 
+def get_access_token(authorization: Optional[str]) -> str:
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    parts = authorization.strip().split()
+    if len(parts) == 1 and parts[0].lower() != "bearer":
+        return parts[0]
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1]
+
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid Authorization header",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 async def get_current_user(
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-
-    token = authorization.replace("Bearer ", "").strip()
+    token = get_access_token(authorization)
     user = await user_crud.get_user_by_token(db, token)
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     return user
+
+
+async def require_admin(current_user=Depends(get_current_user)):
+    if getattr(current_user, "role", "user") != "admin":
+        raise HTTPException(status_code=403, detail="Admin permission required")
+    return current_user
 
 
 @router.post("/register")
@@ -67,7 +95,7 @@ async def logout(
     db: AsyncSession = Depends(get_db),
 ):
     if authorization:
-        token = authorization.replace("Bearer ", "").strip()
+        token = get_access_token(authorization)
         await user_crud.delete_token(db, token)
 
     return {"message": "Logout success"}
@@ -83,6 +111,7 @@ async def user_list(
     keyword: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
+    current_user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     total, users = await user_crud.get_user_list(db, keyword, page, page_size)
@@ -95,7 +124,11 @@ async def user_list(
 
 
 @router.get("/detail/{user_id}")
-async def user_detail(user_id: int, db: AsyncSession = Depends(get_db)):
+async def user_detail(
+    user_id: int,
+    current_user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     user = await user_crud.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -143,6 +176,7 @@ async def update_password(
 async def update_user(
     user_id: int,
     data: UserUpdate,
+    current_user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     user = await user_crud.get_user_by_id(db, user_id)
@@ -164,7 +198,11 @@ async def update_user(
 
 
 @router.delete("/{user_id}")
-async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_user(
+    user_id: int,
+    current_user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     user = await user_crud.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

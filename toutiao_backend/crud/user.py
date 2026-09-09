@@ -2,17 +2,13 @@ from datetime import datetime, timedelta
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-try:
-    from passlib.context import CryptContext
-except ImportError:
-    CryptContext = None
+from passlib.context import CryptContext
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") if CryptContext else None
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 VALID_GENDERS = {"male", "female", "unknown"}
 
 
@@ -23,17 +19,16 @@ def user_to_dict(row):
 
 
 def hash_password(password: str) -> str:
-    if pwd_context:
-        return pwd_context.hash(password)
-    return password
+    return pwd_context.hash(password)
 
 
 def verify_password(password: str, saved_password: str) -> bool:
-    if saved_password.startswith(("$2a$", "$2b$", "$2y$")):
-        if not pwd_context:
-            raise HTTPException(status_code=500, detail="Please install passlib[bcrypt]")
-        return pwd_context.verify(password, saved_password)
-    return password == saved_password
+    if pwd_context.identify(saved_password):
+        try:
+            return pwd_context.verify(password, saved_password)
+        except ValueError:
+            return False
+    return False
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int):

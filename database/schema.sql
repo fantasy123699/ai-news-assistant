@@ -24,11 +24,13 @@ CREATE TABLE IF NOT EXISTS `user` (
     gender VARCHAR(10) NOT NULL DEFAULT 'unknown' COMMENT '性别',
     bio VARCHAR(500) NULL COMMENT '个人简介',
     phone VARCHAR(20) NULL COMMENT '手机号',
+    role VARCHAR(20) NOT NULL DEFAULT 'user' COMMENT '权限角色',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_username (username),
-    UNIQUE KEY uk_user_phone (phone)
+    UNIQUE KEY uk_user_phone (phone),
+    KEY idx_user_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS news (

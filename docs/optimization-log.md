@@ -40,3 +40,25 @@
 
 - Authentication and authorization hardening remain a separate module.
 - Database migrations remain a later production-readiness module; this module only establishes a reproducible baseline.
+
+## 2026-09-09 - Authentication and authorization hardening
+
+### Scope
+
+- Removed plaintext password verification and made password hashing dependencies fail closed.
+- Added practical password and profile-field validation at the API boundary.
+- Added a minimal `user`/`admin` role boundary without introducing a separate permission system.
+- Restricted user administration and news mutation endpoints to authenticated administrators.
+- Kept existing raw access tokens compatible while also accepting the standard Bearer header form.
+
+### Verification
+
+- Password hashing, plaintext rejection, password limits, token parsing, and role enforcement have unit coverage.
+- Python compilation and the full standard-library test suite are run before commit.
+- Route dependencies are reviewed to confirm that every administrative mutation is protected.
+- The committed diff is limited to authentication, its database role migration, tests, and this log entry.
+
+### Follow-up
+
+- Token hashing, revocation of all sessions after password changes, and login rate limiting remain future security work.
+- Fine-grained roles are intentionally not added because the current project only needs a small administrator boundary.

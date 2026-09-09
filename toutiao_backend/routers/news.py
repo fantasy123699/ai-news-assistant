@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.db_cond import get_db
 from crud import news as news_crud
+from routers.user import require_admin
 from utils.cache import delete_cache, delete_pattern, get_cache, set_cache
 
 
@@ -135,6 +136,7 @@ async def get_news_detail(
 @router.post("/")
 async def create_news(
     data: NewsCreate,
+    current_user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     category = await news_crud.get_category_by_id(db, data.category_id)
@@ -163,6 +165,7 @@ async def create_news(
 async def update_news(
     news_id: int,
     data: NewsUpdate,
+    current_user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     news = await news_crud.get_news_by_id(db, news_id)
@@ -191,6 +194,7 @@ async def update_news(
 @router.delete("/{news_id}")
 async def delete_news(
     news_id: int,
+    current_user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     news = await news_crud.get_news_by_id(db, news_id)
