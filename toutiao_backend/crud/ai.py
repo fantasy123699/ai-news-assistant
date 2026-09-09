@@ -133,21 +133,38 @@ async def search_news_for_recommendation(
 
 async def search_news_for_chat(
     db: AsyncSession,
-    question: str,
+    search_terms: list[str],
     category_name: Optional[str] = None,
     limit: int = 6,
 ):
-    params = {
-        "limit": limit,
-        "keyword": f"%{question}%",
-    }
-    where_parts = [
-        "(n.title LIKE :keyword OR n.description LIKE :keyword OR n.content LIKE :keyword)"
-    ]
+    params = {"limit": limit}
+    match_parts = []
+    score_parts = []
+
+    for index, term in enumerate(search_terms):
+        param_name = f"keyword_{index}"
+        params[param_name] = f"%{term}%"
+        match_parts.append(
+            f"(n.title LIKE :{param_name} "
+            f"OR n.description LIKE :{param_name} "
+            f"OR n.content LIKE :{param_name})"
+        )
+        score_parts.append(
+            f"(CASE WHEN n.title LIKE :{param_name} THEN 5 ELSE 0 END + "
+            f"CASE WHEN n.description LIKE :{param_name} THEN 3 ELSE 0 END + "
+            f"CASE WHEN n.content LIKE :{param_name} THEN 1 ELSE 0 END)"
+        )
+
+    where_parts = []
+    if match_parts:
+        where_parts.append(f"({' OR '.join(match_parts)})")
 
     if category_name:
         where_parts.append("c.name = :category_name")
         params["category_name"] = category_name
+
+    where_sql = " AND ".join(where_parts) or "1 = 1"
+    score_sql = " + ".join(score_parts) or "0"
 
     result = await db.execute(
         text(
@@ -162,11 +179,12 @@ async def search_news_for_chat(
                 n.category_id,
                 c.name AS category_name,
                 n.views,
-                n.publish_time
+                n.publish_time,
+                {score_sql} AS retrieval_score
             FROM news n
             LEFT JOIN news_category c ON c.id = n.category_id
-            WHERE {" OR ".join(where_parts)}
-            ORDER BY n.publish_time DESC, n.views DESC, n.id DESC
+            WHERE {where_sql}
+            ORDER BY retrieval_score DESC, n.publish_time DESC, n.views DESC, n.id DESC
             LIMIT :limit
             """
         ),
@@ -174,10 +192,10 @@ async def search_news_for_chat(
     )
     rows = result.fetchall()
 
-    if rows:
+    if rows or (not match_parts and not category_name):
         return rows
 
-    if category_name:
+    if category_name and match_parts:
         result = await db.execute(
             text(
                 """
@@ -191,7 +209,8 @@ async def search_news_for_chat(
                     n.category_id,
                     c.name AS category_name,
                     n.views,
-                    n.publish_time
+                    n.publish_time,
+                    0 AS retrieval_score
                 FROM news n
                 LEFT JOIN news_category c ON c.id = n.category_id
                 WHERE c.name = :category_name
@@ -219,7 +238,8 @@ async def search_news_for_chat(
                 n.category_id,
                 c.name AS category_name,
                 n.views,
-                n.publish_time
+                n.publish_time,
+                0 AS retrieval_score
             FROM news n
             LEFT JOIN news_category c ON c.id = n.category_id
             ORDER BY n.publish_time DESC, n.views DESC, n.id DESC

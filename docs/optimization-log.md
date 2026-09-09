@@ -83,3 +83,24 @@
 
 - Retrieval quality, citations, evaluation datasets, and prompt versioning remain a separate RAG-quality module.
 - Streaming output and token-usage accounting remain separate product enhancements.
+
+## 2026-09-09 - RAG retrieval baseline
+
+### Scope
+
+- Added Chinese query-term extraction and explicit category detection.
+- Replaced whole-question matching with parameterized multi-term retrieval and explainable field weights.
+- Added category and recent-news fallback behavior for zero-hit queries.
+- Added source identifiers to retrieved context, API references, and citation instructions.
+- Added a seed-aligned Hit@K dataset and a reusable database-backed evaluation command.
+
+### Verification
+
+- Unit tests cover extraction, weighted SQL construction, category filtering, and fallback behavior.
+- The evaluation dataset is parsed and the evaluator entry point is checked without requiring a running model.
+- Existing authentication and LLM-client tests, Python compilation, OpenAPI generation, and dependency integrity are rerun.
+
+### Follow-up
+
+- Collecting anonymized real queries is the next requirement before choosing embeddings or a vector database.
+- Prompt versioning and answer-level faithfulness evaluation remain separate improvements.
