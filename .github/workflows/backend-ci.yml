@@ -28,6 +28,9 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

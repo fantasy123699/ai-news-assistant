@@ -144,3 +144,25 @@
 
 - Database integration tests with an isolated MySQL service remain a separate module.
 - A public status badge should be added after this workflow reaches the default branch.
+
+## 2026-09-10 - Reproducible container run baseline
+
+### Scope
+
+- Added a non-root Python 3.12 application image.
+- Added a local Compose stack for the API, MySQL, and Redis with dependency health checks.
+- Added automatic first-volume schema and seed initialization.
+- Added an application liveness endpoint, test coverage, and concise start, stop, reset, and model-host instructions.
+- Added Compose configuration validation to the existing backend CI workflow.
+
+### Verification
+
+- The Compose model is rendered and validated before commit.
+- The health endpoint is exercised through the ASGI application.
+- Existing tests, offline evaluation, compilation, OpenAPI generation, and dependency integrity are rerun.
+- A clean isolated Compose project is used for the container smoke test when the local Docker engine is available.
+
+### Follow-up
+
+- This is intentionally a local reproducibility baseline, not a production claim.
+- Production secrets, TLS, backups, monitoring, migration controls, and rollback verification remain deployment-specific work.

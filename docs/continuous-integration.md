@@ -6,6 +6,7 @@ The job uses Python 3.12 and verifies:
 
 - the complete standard-library unit test suite;
 - the checked-in citation-grounding fixtures;
+- the Docker Compose configuration;
 - Python source compilation;
 - OpenAPI schema generation;
 - installed dependency consistency.

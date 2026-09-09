@@ -20,6 +20,11 @@ async def root():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/health", tags=["System"])
+async def health():
+    return {"status": "ok"}
+
+
 app.include_router(news.router)
 app.include_router(user.router)
 app.include_router(favorite.router)
