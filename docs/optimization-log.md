@@ -104,3 +104,23 @@
 
 - Collecting anonymized real queries is the next requirement before choosing embeddings or a vector database.
 - Prompt versioning and answer-level faithfulness evaluation remain separate improvements.
+
+## 2026-09-09 - Prompt versioning and citation-grounding evaluation
+
+### Scope
+
+- Moved the site-news chat prompt into one versioned builder without changing its behavior.
+- Returned the prompt version with site-chat responses for traceability.
+- Added a deterministic answer-level check for invalid citations and uncited factual statements.
+- Added reusable offline fixtures, a command-line evaluator, tests, and concise limitations documentation.
+
+### Verification
+
+- Unit tests cover prompt construction, version stability, valid citations, unknown citations, and uncited statements.
+- The offline fixture evaluator must classify every checked-in case correctly.
+- Existing authentication, LLM-client, and retrieval tests, Python compilation, OpenAPI generation, and dependency integrity are rerun.
+
+### Follow-up
+
+- Add reviewed real model responses before tuning prompt wording or thresholds.
+- Semantic entailment scoring remains future work and should not be confused with deterministic citation coverage.

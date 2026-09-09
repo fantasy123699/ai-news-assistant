@@ -1,0 +1,26 @@
+[
+  {
+    "name": "all statements use known sources",
+    "answer": "检索增强让站内问答能够引用新闻内容。[来源1]\n用户可以根据来源编号查看对应新闻。[来源2]",
+    "reference_ids": ["来源1", "来源2"],
+    "expected_pass": true
+  },
+  {
+    "name": "unknown source is rejected",
+    "answer": "系统已经支持自动事实核查。[来源3]",
+    "reference_ids": ["来源1", "来源2"],
+    "expected_pass": false
+  },
+  {
+    "name": "uncited factual statement is rejected",
+    "answer": "系统会根据用户收藏生成推荐。",
+    "reference_ids": ["来源1"],
+    "expected_pass": false
+  },
+  {
+    "name": "closing navigation hint needs no citation",
+    "answer": "新闻摘要接口会生成简短中文摘要。[来源1]\n你可以点击新闻列表查看详情。",
+    "reference_ids": ["来源1"],
+    "expected_pass": true
+  }
+]
