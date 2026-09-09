@@ -62,3 +62,24 @@
 
 - Token hashing, revocation of all sessions after password changes, and login rate limiting remain future security work.
 - Fine-grained roles are intentionally not added because the current project only needs a small administrator boundary.
+
+## 2026-09-09 - Reliable LLM client
+
+### Scope
+
+- Replaced thread-wrapped blocking HTTP calls with a native asynchronous model client.
+- Added configurable request timeout, bounded exponential-backoff retries, and retryable status handling.
+- Added safe upstream error mapping and rejected invalid or empty model responses.
+- Added latency and retry logs without recording prompts, responses, or upstream error bodies.
+- Added input bounds for AI endpoints and concise model-client documentation.
+
+### Verification
+
+- Mocked provider tests cover successful output, transient retries, timeouts, rejected requests, and empty output.
+- Existing authentication tests, Python compilation, configuration parsing, and OpenAPI generation are rerun.
+- Dependency integrity and the committed diff are reviewed before upload.
+
+### Follow-up
+
+- Retrieval quality, citations, evaluation datasets, and prompt versioning remain a separate RAG-quality module.
+- Streaming output and token-usage accounting remain separate product enhancements.
