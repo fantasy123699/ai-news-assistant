@@ -14,9 +14,15 @@ const text = {
   clearSuccess: "\u6e05\u7a7a\u6210\u529f",
   saveSuccess: "\u4fdd\u5b58\u6210\u529f",
   aiWorking: "AI \u6b63\u5728\u601d\u8003...",
-  aiSummary: "AI \u603b\u7ed3",
-  aiAsk: "\u63d0\u95ee",
-  aiQuestionPlaceholder: "\u9488\u5bf9\u8fd9\u7bc7\u65b0\u95fb\u63d0\u4e00\u4e2a\u95ee\u9898",
+  aiSummary: "\u751f\u6210 AI \u6458\u8981",
+  aiAsk: "\u53d1\u9001\u95ee\u9898",
+  aiQuestionPlaceholder: "\u4f8b\u5982\uff1a\u8fd9\u7bc7\u65b0\u95fb\u7684\u6838\u5fc3\u7ed3\u8bba\u662f\u4ec0\u4e48\uff1f",
+  aiQuestionRequired: "\u8bf7\u5148\u8f93\u5165\u4e00\u4e2a\u5173\u4e8e\u672c\u6587\u7684\u95ee\u9898\u3002",
+  aiLoginRequired: "\u767b\u5f55\u540e\u5373\u53ef\u751f\u6210\u6458\u8981\u5e76\u9488\u5bf9\u672c\u6587\u8ffd\u95ee\u3002",
+  aiAnswerPlaceholder: "\u6458\u8981\u6216\u56de\u7b54\u4f1a\u663e\u793a\u5728\u8fd9\u91cc\u3002",
+  aiSummaryWorking: "\u6b63\u5728\u63d0\u70bc\u672c\u6587\u8981\u70b9...",
+  aiAnswerWorking: "\u6b63\u5728\u6839\u636e\u672c\u6587\u7ec4\u7ec7\u56de\u7b54...",
+  aiRequestFailed: "AI \u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002",
   aiSiteWelcome: "\u4f60\u53ef\u4ee5\u95ee\u6211\u65b0\u95fb\u5e93\u91cc\u7684\u5185\u5bb9\uff0c\u4f8b\u5982\uff1a\u6211\u60f3\u77e5\u9053\u6700\u8fd1\u7684\u8d22\u7ecf\u65b0\u95fb",
   loadFail: "\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u786e\u8ba4\u540e\u7aef\u548c MySQL \u5df2\u542f\u52a8",
   notLoggedIn: "\u672a\u767b\u5f55",
@@ -75,6 +81,63 @@ function getImage(url) {
   return url || "https://picsum.photos/seed/news/300/200";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function renderDetailAiAnswer(label, content, tone = "") {
+  const answer = $("aiAnswer");
+  if (!answer) return;
+  answer.className = `ai-answer${tone ? ` ${tone}` : ""}`;
+  answer.setAttribute("role", tone === "error" ? "alert" : "status");
+  answer.innerHTML = `
+    <span class="ai-answer-label">${escapeHtml(label)}</span>
+    <p>${escapeHtml(content)}</p>
+  `;
+}
+
+function renderDetailAiLogin() {
+  const answer = $("aiAnswer");
+  answer.className = "ai-answer notice";
+  answer.innerHTML = `
+    <span class="ai-answer-label">\u767b\u5f55\u540e\u53ef\u7528</span>
+    <p>${text.aiLoginRequired}</p>
+    <button id="detailLogin" type="button">\u53bb\u767b\u5f55</button>
+  `;
+}
+
+function syncDetailAiAccess() {
+  const badge = $("detailAiAccess");
+  if (!badge) return;
+  badge.innerText = state.token ? "\u5df2\u5c31\u7eea" : "\u767b\u5f55\u540e\u53ef\u7528";
+  badge.classList.toggle("ready", Boolean(state.token));
+}
+
+async function runDetailAi(button, pendingLabel, resultLabel, requestTask, pickResult) {
+  const buttons = document.querySelectorAll("#detailAi button");
+  const newsId = String(button.dataset.id);
+  const originalLabel = button.innerText;
+  buttons.forEach(item => { item.disabled = true; });
+  button.innerText = pendingLabel;
+  renderDetailAiAnswer("AI \u6b63\u5728\u601d\u8003", pendingLabel, "working");
+  try {
+    const data = await requestTask();
+    if (state.selectedNewsId !== newsId || !$("detailAi")?.contains(button)) return;
+    renderDetailAiAnswer(resultLabel, pickResult(data));
+  } catch (err) {
+    if (state.selectedNewsId !== newsId || !$("detailAi")?.contains(button)) return;
+    renderDetailAiAnswer("\u8bf7\u6c42\u5931\u8d25", err.message || text.aiRequestFailed, "error");
+  } finally {
+    buttons.forEach(item => { item.disabled = false; });
+    button.innerText = originalLabel;
+  }
+}
+
 function showView(viewName) {
   document.querySelectorAll(".view").forEach(item => item.classList.add("hidden"));
   document.querySelectorAll(".nav-btn").forEach(item => {
@@ -97,6 +160,7 @@ function renderLoginStatus() {
     ? `${text.loggedIn}: ${state.currentUser.nickname || state.currentUser.username}`
     : text.notLoggedIn;
   $("logout").classList.toggle("hidden", !state.token);
+  syncDetailAiAccess();
 }
 
 function appendSiteAiMessage(role, content, references = []) {
@@ -241,33 +305,58 @@ async function loadDetail(id) {
   });
   await addHistory(id);
   const isFavorite = await checkFavorite(id);
+  const title = escapeHtml(data.title);
+  const category = escapeHtml(data.category_name || text.unknownCategory);
+  const author = escapeHtml(data.author || text.unknownAuthor);
   $("detail").innerHTML = `
-    <img class="detail-img" src="${getImage(data.image)}" alt="${data.title}">
-    <h2>${data.title}</h2>
-    <p class="muted">${data.category_name || text.unknownCategory} · ${data.author || text.unknownAuthor} · ${data.views || 0} ${text.views}</p>
+    <img class="detail-img" src="${escapeHtml(getImage(data.image))}" alt="${title}">
+    <div class="detail-heading">
+      <span class="section-kicker">ARTICLE BRIEF</span>
+      <h2>${title}</h2>
+      <div class="detail-meta"><span>${category}</span><span>${author}</span><span>${data.views || 0} ${text.views}</span></div>
+    </div>
     <div class="action-row">
       <button id="favoriteAction" data-id="${data.id}" data-favorite="${isFavorite ? "1" : "0"}">
         ${isFavorite ? "\u53d6\u6d88\u6536\u85cf" : "\u6536\u85cf"}
       </button>
     </div>
-    <div class="ai-box">
-      <div class="action-row">
-        <button id="aiSummary" data-id="${data.id}">${text.aiSummary}</button>
+    <section id="detailAi" class="ai-box" aria-labelledby="detailAiTitle">
+      <div class="ai-box-heading">
+        <div>
+          <span class="section-kicker">ARTICLE COPILOT</span>
+          <h3 id="detailAiTitle">AI \u9605\u8bfb\u52a9\u624b</h3>
+          <p>\u5148\u5feb\u901f\u603b\u7ed3\uff0c\u4e5f\u53ef\u4ee5\u56f4\u7ed5\u672c\u6587\u7ee7\u7eed\u8ffd\u95ee\u3002\u56de\u7b54\u4ec5\u57fa\u4e8e\u5f53\u524d\u65b0\u95fb\u5185\u5bb9\u3002</p>
+        </div>
+        <span id="detailAiAccess" class="ai-access"></span>
       </div>
-      <textarea id="aiQuestion" placeholder="${text.aiQuestionPlaceholder}"></textarea>
+      <div class="ai-summary-action">
+        <button id="aiSummary" data-id="${data.id}">${text.aiSummary}</button>
+        <span>\u7ea6 120 \u5b57\u4ee5\u5185</span>
+      </div>
+      <div class="ai-prompt-list" aria-label="\u5feb\u6377\u95ee\u9898">
+        <button class="ai-prompt" type="button" data-question="\u8fd9\u7bc7\u65b0\u95fb\u7684\u6838\u5fc3\u7ed3\u8bba\u662f\u4ec0\u4e48\uff1f">\u6838\u5fc3\u7ed3\u8bba</button>
+        <button class="ai-prompt" type="button" data-question="\u6587\u4e2d\u6709\u54ea\u4e9b\u5173\u952e\u4e8b\u5b9e\uff1f">\u5173\u952e\u4e8b\u5b9e</button>
+      </div>
+      <label for="aiQuestion">\u9488\u5bf9\u672c\u6587\u63d0\u95ee</label>
+      <textarea id="aiQuestion" maxlength="1000" aria-describedby="aiQuestionError" placeholder="${text.aiQuestionPlaceholder}"></textarea>
+      <p id="aiQuestionError" class="form-error" role="alert"></p>
       <button id="aiAsk" data-id="${data.id}">${text.aiAsk}</button>
-      <div id="aiAnswer" class="ai-answer"></div>
-    </div>
-    <p>${data.description || ""}</p>
-    <div class="body">${data.content || ""}</div>
+      <div id="aiAnswer" class="ai-answer empty" role="status" aria-live="polite">
+        <span class="ai-answer-label">AI \u751f\u6210\u5185\u5bb9</span>
+        <p>${text.aiAnswerPlaceholder}</p>
+      </div>
+    </section>
+    <p class="detail-lead">${escapeHtml(data.description || "")}</p>
+    <div class="body">${escapeHtml(data.content || "")}</div>
     <h3>\u76f8\u5173\u63a8\u8350</h3>
     ${(data.related_news || []).map(item => `
-      <div class="related" data-id="${item.id}">
-        <strong>${item.title}</strong>
-        <p>${item.category_name || text.unknownCategory} · ${item.views || 0} ${text.views}</p>
-      </div>
+      <button class="related" data-id="${item.id}">
+        <strong>${escapeHtml(item.title)}</strong>
+        <span>${escapeHtml(item.category_name || text.unknownCategory)} · ${item.views || 0} ${text.views}</span>
+      </button>
     `).join("") || `<p>${text.noRelated}</p>`}
   `;
+  syncDetailAiAccess();
   if (window.matchMedia("(max-width: 980px)").matches) {
     $("detail").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -368,31 +457,53 @@ document.addEventListener("click", async (event) => {
   const aiSummary = event.target.closest("#aiSummary");
   if (aiSummary) {
     if (!state.token) {
-      alert(text.loginFirst);
-      showView("profile");
+      renderDetailAiLogin();
       return;
     }
-    $("aiAnswer").innerText = text.aiWorking;
-    const data = await requestJson("/ai/news/summary", "POST", { news_id: Number(aiSummary.dataset.id) });
-    $("aiAnswer").innerText = data.summary || "";
+    await runDetailAi(
+      aiSummary,
+      text.aiSummaryWorking,
+      "AI \u6458\u8981",
+      () => requestJson("/ai/news/summary", "POST", { news_id: Number(aiSummary.dataset.id) }),
+      data => data.summary || ""
+    );
   }
 
   const aiAsk = event.target.closest("#aiAsk");
   if (aiAsk) {
     if (!state.token) {
-      alert(text.loginFirst);
-      showView("profile");
+      renderDetailAiLogin();
       return;
     }
     const question = $("aiQuestion").value.trim();
-    if (!question) return;
-    $("aiAnswer").innerText = text.aiWorking;
-    const data = await requestJson("/ai/news/chat", "POST", {
-      news_id: Number(aiAsk.dataset.id),
-      question
-    });
-    $("aiAnswer").innerText = data.answer || "";
+    if (!question) {
+      $("aiQuestion").setAttribute("aria-invalid", "true");
+      $("aiQuestionError").innerText = text.aiQuestionRequired;
+      $("aiQuestion").focus();
+      return;
+    }
+    await runDetailAi(
+      aiAsk,
+      text.aiAnswerWorking,
+      "AI \u56de\u7b54",
+      () => requestJson("/ai/news/chat", "POST", {
+        news_id: Number(aiAsk.dataset.id),
+        question
+      }),
+      data => data.answer || ""
+    );
   }
+
+  const aiPrompt = event.target.closest(".ai-prompt");
+  if (aiPrompt) {
+    $("aiQuestion").value = aiPrompt.dataset.question;
+    $("aiQuestion").removeAttribute("aria-invalid");
+    $("aiQuestionError").innerText = "";
+    $("aiQuestion").focus();
+  }
+
+  const detailLogin = event.target.closest("#detailLogin");
+  if (detailLogin) showView("profile");
 
   const removeFavorite = event.target.closest(".remove-favorite");
   if (removeFavorite) {
@@ -449,6 +560,12 @@ $("list").addEventListener("keydown", async (event) => {
   if (!item || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
   await loadDetail(item.dataset.id);
+});
+
+document.addEventListener("input", (event) => {
+  if (event.target.id !== "aiQuestion") return;
+  event.target.removeAttribute("aria-invalid");
+  $("aiQuestionError").innerText = "";
 });
 
 $("loginForm").onsubmit = async (event) => {

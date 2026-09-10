@@ -192,3 +192,25 @@
 
 - This module does not redesign authentication, article-detail AI calls, or the model provider integration.
 - Public-production readiness still requires deployment-specific security, recovery, and observability work.
+
+## 2026-09-10 - Article detail and AI-reading interaction polish
+
+### Scope
+
+- Preserved the existing detail-page structure while clarifying article metadata, source content, and AI-assisted reading hierarchy.
+- Replaced the temporary summary/question form with a labeled, article-grounded AI reading workflow.
+- Added quick prompts, input guidance, result labeling, loading/error feedback, safe response rendering, and stale-response protection.
+- Replaced disruptive unauthenticated alerts with contextual login guidance that keeps the article visible.
+- Added accessible status semantics and responsive behavior for the existing mobile breakpoint.
+- Recorded same-viewport before/after, login-guidance, and mobile browser evidence in `docs/ui-audit/detail-ai/`.
+
+### Verification
+
+- Exercised article selection, quick-prompt insertion, and unauthenticated summary guidance in the browser.
+- Checked the detail and AI regions at 1440×900 and 390×844 and reviewed before/after captures together.
+- Reran JavaScript syntax, Python unit, offline citation, compilation, OpenAPI, dependency, Compose, and container-health checks before commit.
+
+### Follow-up
+
+- Exercise authenticated summary and article-question requests against the intended model provider before a public production claim.
+- Streaming responses, token/cost telemetry, and richer citation presentation remain separate product modules.
