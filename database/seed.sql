@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 USE news_app;
 
 INSERT INTO news_category (name, sort_order) VALUES

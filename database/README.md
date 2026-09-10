@@ -24,6 +24,12 @@ If the database was initialized before the role column was added, run the one-ti
 mysql -u root -p < database/migrations/001_add_user_role.sql
 ```
 
+If the bundled Chinese demo content was imported with mojibake, run the idempotent repair migration:
+
+```bash
+mysql -u root -p < database/migrations/002_repair_seed_utf8.sql
+```
+
 New accounts receive the `user` role. Promote an account only through a trusted database administration session when it needs access to user-management and news-writing endpoints.
 
 ```sql

@@ -153,6 +153,8 @@
 - Added a local Compose stack for the API, MySQL, and Redis with dependency health checks.
 - Added automatic first-volume schema and seed initialization.
 - Added the runtime dependency required by MySQL 8 SHA-2 password authentication.
+- Preserved UTF-8 during database initialization and added a targeted repair for previously corrupted demo rows.
+- Made the MySQL health check wait for the final TCP listener instead of the temporary initialization server.
 - Added an application liveness endpoint, test coverage, and concise start, stop, reset, and model-host instructions.
 - Added Compose configuration validation to the existing backend CI workflow.
 
