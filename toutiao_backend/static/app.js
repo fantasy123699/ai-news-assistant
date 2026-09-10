@@ -22,7 +22,11 @@ const text = {
   notLoggedIn: "\u672a\u767b\u5f55",
   loggedIn: "\u5df2\u767b\u5f55",
   emptyFavorite: "\u6682\u65e0\u6536\u85cf",
-  emptyHistory: "\u6682\u65e0\u5386\u53f2"
+  emptyHistory: "\u6682\u65e0\u5386\u53f2",
+  loadingNews: "\u6b63\u5728\u66f4\u65b0\u65b0\u95fb...",
+  emptyNews: "\u6ca1\u6709\u627e\u5230\u5339\u914d\u7684\u65b0\u95fb",
+  emptyNewsHint: "\u8bd5\u8bd5\u66f4\u6362\u5173\u952e\u8bcd\u6216\u91cd\u7f6e\u7b5b\u9009\u6761\u4ef6",
+  openNews: "\u67e5\u770b\u65b0\u95fb"
 };
 
 let state = {
@@ -31,6 +35,7 @@ let state = {
   page: 1,
   pageSize: 10,
   total: 0,
+  selectedNewsId: "",
   token: localStorage.getItem("token") || "",
   currentUser: null
 };
@@ -72,10 +77,16 @@ function getImage(url) {
 
 function showView(viewName) {
   document.querySelectorAll(".view").forEach(item => item.classList.add("hidden"));
-  document.querySelectorAll(".nav-btn").forEach(item => item.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(item => {
+    item.classList.remove("active");
+    item.removeAttribute("aria-current");
+  });
   $(`${viewName}View`).classList.remove("hidden");
   const navButton = document.querySelector(`.nav-btn[data-view="${viewName}"]`);
-  if (navButton) navButton.classList.add("active");
+  if (navButton) {
+    navButton.classList.add("active");
+    navButton.setAttribute("aria-current", "page");
+  }
   if (viewName === "favorites") loadFavorites();
   if (viewName === "history") loadHistory();
   if (viewName === "profile") refreshUserPanel();
@@ -157,27 +168,50 @@ async function refreshUserPanel() {
 
 async function loadCategories() {
   const data = await request("/news/categories");
-  $("categories").innerHTML = data.map(item => `<button class="cat" data-id="${item.id}">${item.name}</button>`).join("");
+  $("categories").innerHTML = data.map(item => `<button class="cat" data-id="${item.id}" aria-pressed="false">${item.name}</button>`).join("");
 }
 
 async function loadList() {
+  const list = $("list");
+  const listStatus = $("listStatus");
+  list.setAttribute("aria-busy", "true");
+  listStatus.classList.remove("error");
+  listStatus.innerText = text.loadingNews;
+  $("search").disabled = true;
+
   const params = new URLSearchParams({ page: String(state.page), page_size: String(state.pageSize) });
   if (state.categoryId) params.set("category_id", state.categoryId);
   if (state.keyword) params.set("keyword", state.keyword);
-  const data = await request(`/news/list?${params.toString()}`);
-  state.total = data.total;
-  $("meta").innerText = `\u5171 ${data.total} \u6761\u65b0\u95fb`;
-  $("page").innerText = `\u7b2c ${state.page} \u9875`;
-  $("list").innerHTML = data.list.map(item => `
-    <article class="item" data-id="${item.id}">
-      <img src="${getImage(item.image)}" alt="${item.title}">
-      <div>
-        <h3>${item.title}</h3>
-        <p>${item.description || text.noDesc}</p>
-        <p>${item.category_name || text.unknownCategory} · ${item.views || 0} ${text.views}</p>
-      </div>
-    </article>
-  `).join("");
+  try {
+    const data = await request(`/news/list?${params.toString()}`);
+    state.total = data.total;
+    $("meta").innerText = `\u5171 ${data.total} \u6761\u65b0\u95fb`;
+    $("page").innerText = `\u7b2c ${state.page} \u9875`;
+    list.innerHTML = data.list.length
+      ? data.list.map(item => `
+          <article class="item${String(item.id) === state.selectedNewsId ? " selected" : ""}" data-id="${item.id}" tabindex="0" role="button" aria-label="${text.openNews}\uff1a${item.title}">
+            <img src="${getImage(item.image)}" alt="${item.title}" loading="lazy">
+            <div>
+              <div class="item-meta"><span>${item.category_name || text.unknownCategory}</span><span>${item.views || 0} ${text.views}</span></div>
+              <h3>${item.title}</h3>
+              <p>${item.description || text.noDesc}</p>
+            </div>
+          </article>
+        `).join("")
+      : `<div class="empty-state"><strong>${text.emptyNews}</strong><span>${text.emptyNewsHint}</span></div>`;
+    listStatus.innerText = "";
+  } catch (err) {
+    state.total = 0;
+    list.innerHTML = "";
+    listStatus.innerText = text.loadFail;
+    listStatus.classList.add("error");
+    throw err;
+  } finally {
+    list.setAttribute("aria-busy", "false");
+    $("search").disabled = false;
+    $("prev").disabled = state.page <= 1;
+    $("next").disabled = state.page * state.pageSize >= state.total;
+  }
 }
 
 async function addHistory(newsId) {
@@ -201,6 +235,10 @@ async function checkFavorite(newsId) {
 
 async function loadDetail(id) {
   const data = await request(`/news/detail/${id}`);
+  state.selectedNewsId = String(id);
+  document.querySelectorAll(".item").forEach(item => {
+    item.classList.toggle("selected", item.dataset.id === state.selectedNewsId);
+  });
   await addHistory(id);
   const isFavorite = await checkFavorite(id);
   $("detail").innerHTML = `
@@ -230,6 +268,9 @@ async function loadDetail(id) {
       </div>
     `).join("") || `<p>${text.noRelated}</p>`}
   `;
+  if (window.matchMedia("(max-width: 980px)").matches) {
+    $("detail").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 async function loadFavorites() {
@@ -278,8 +319,12 @@ document.addEventListener("click", async (event) => {
   const cat = event.target.closest(".cat");
   if (cat) {
     showView("news");
-    document.querySelectorAll(".cat").forEach(btn => btn.classList.remove("active"));
+    document.querySelectorAll(".cat").forEach(btn => {
+      btn.classList.remove("active");
+      btn.setAttribute("aria-pressed", "false");
+    });
     cat.classList.add("active");
+    cat.setAttribute("aria-pressed", "true");
     state.categoryId = cat.dataset.id;
     state.page = 1;
     $("title").innerText = cat.innerText;
@@ -362,7 +407,8 @@ document.addEventListener("click", async (event) => {
   }
 });
 
-$("search").onclick = async () => {
+$("newsSearchForm").onsubmit = async (event) => {
+  event.preventDefault();
   state.keyword = $("keyword").value.trim();
   state.page = 1;
   await loadList();
@@ -374,8 +420,13 @@ $("reset").onclick = async () => {
   state.page = 1;
   $("keyword").value = "";
   $("title").innerText = text.allNews;
-  document.querySelectorAll(".cat").forEach(btn => btn.classList.remove("active"));
-  document.querySelector(".cat[data-id='']").classList.add("active");
+  document.querySelectorAll(".cat").forEach(btn => {
+    btn.classList.remove("active");
+    btn.setAttribute("aria-pressed", "false");
+  });
+  const allNewsButton = document.querySelector(".cat[data-id='']");
+  allNewsButton.classList.add("active");
+  allNewsButton.setAttribute("aria-pressed", "true");
   await loadList();
 };
 
@@ -392,6 +443,13 @@ $("next").onclick = async () => {
     await loadList();
   }
 };
+
+$("list").addEventListener("keydown", async (event) => {
+  const item = event.target.closest(".item");
+  if (!item || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  await loadDetail(item.dataset.id);
+});
 
 $("loginForm").onsubmit = async (event) => {
   event.preventDefault();
@@ -494,6 +552,20 @@ $("siteAiForm").onsubmit = async (event) => {
     last.innerText = err.message || "\u8bf7\u6c42\u5931\u8d25";
   }
 };
+
+$("siteAiTab").onclick = () => {
+  const drawer = $("siteAi");
+  const isOpen = drawer.classList.toggle("open");
+  $("siteAiTab").setAttribute("aria-expanded", String(isOpen));
+  if (isOpen) $("siteAiInput").focus();
+};
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !$("siteAi").classList.contains("open")) return;
+  $("siteAi").classList.remove("open");
+  $("siteAiTab").setAttribute("aria-expanded", "false");
+  $("siteAiTab").focus();
+});
 
 async function init() {
   try {

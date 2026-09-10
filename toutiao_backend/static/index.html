@@ -4,24 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>&#x65B0;&#x95FB;&#x7BA1;&#x7406;</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=20260910-4">
 </head>
 <body>
   <aside class="sidebar">
-    <h1>&#x6398;&#x91D1;&#x5934;&#x6761;</h1>
-    <nav class="nav">
-      <button class="nav-btn active" data-view="news">&#x65B0;&#x95FB;</button>
+    <div class="brand">
+      <h1>&#x6398;&#x91D1;&#x5934;&#x6761;</h1>
+      <p>AI &#x65B0;&#x95FB;&#x5DE5;&#x4F5C;&#x53F0;</p>
+    </div>
+    <nav class="nav" aria-label="&#x4E3B;&#x5BFC;&#x822A;">
+      <button class="nav-btn active" data-view="news" aria-current="page">&#x65B0;&#x95FB;</button>
       <button class="nav-btn" data-view="profile">&#x6211;&#x7684;</button>
       <button class="nav-btn" data-view="favorites">&#x6536;&#x85CF;</button>
       <button class="nav-btn" data-view="history">&#x5386;&#x53F2;</button>
     </nav>
     <div class="side-title">&#x65B0;&#x95FB;&#x5206;&#x7C7B;</div>
-    <button class="cat active" data-id="">&#x5168;&#x90E8;&#x65B0;&#x95FB;</button>
+    <button class="cat active" data-id="" aria-pressed="true">&#x5168;&#x90E8;&#x65B0;&#x95FB;</button>
     <div id="categories"></div>
   </aside>
 
   <main class="main">
     <header class="topbar">
+      <div class="workspace-intro">
+        <span class="workspace-kicker">LOCAL AI NEWSROOM</span>
+        <p>&#x68C0;&#x7D22;&#x3001;&#x9605;&#x8BFB;&#xFF0C;&#x5E76;&#x57FA;&#x4E8E;&#x7AD9;&#x5185;&#x65B0;&#x95FB;&#x5411;&#x672C;&#x5730;&#x6A21;&#x578B;&#x63D0;&#x95EE;</p>
+      </div>
       <div class="auth-box">
         <span id="loginStatus">&#x672A;&#x767B;&#x5F55;</span>
         <button id="logout" class="hidden">&#x9000;&#x51FA;</button>
@@ -30,23 +37,34 @@
 
     <section id="newsView" class="view two-col">
       <section class="panel">
-        <div class="search-box news-search">
-          <input id="keyword" placeholder="&#x641C;&#x7D22;&#x65B0;&#x95FB;">
-          <button id="search">&#x641C;&#x7D22;</button>
-          <button id="reset">&#x91CD;&#x7F6E;</button>
+        <div class="panel-heading">
+          <div>
+            <span class="section-kicker">NEWS FEED</span>
+            <h2 id="title">&#x5168;&#x90E8;&#x65B0;&#x95FB;</h2>
+          </div>
+          <p id="meta" class="muted"></p>
         </div>
-        <h2 id="title">&#x5168;&#x90E8;&#x65B0;&#x95FB;</h2>
-        <p id="meta" class="muted"></p>
-        <div id="list"></div>
+        <form id="newsSearchForm" class="search-box news-search" role="search">
+          <label class="sr-only" for="keyword">&#x641C;&#x7D22;&#x65B0;&#x95FB;</label>
+          <input id="keyword" placeholder="&#x8F93;&#x5165;&#x6807;&#x9898;&#x6216;&#x5173;&#x952E;&#x8BCD;" autocomplete="off">
+          <button id="search" type="submit">&#x641C;&#x7D22;</button>
+          <button id="reset" type="button" class="secondary-btn">&#x91CD;&#x7F6E;</button>
+        </form>
+        <p id="listStatus" class="list-status" role="status" aria-live="polite"></p>
+        <div id="list" aria-busy="false"></div>
         <div class="pager">
-          <button id="prev">&#x4E0A;&#x4E00;&#x9875;</button>
-          <span id="page"></span>
-          <button id="next">&#x4E0B;&#x4E00;&#x9875;</button>
+          <button id="prev" aria-label="&#x4E0A;&#x4E00;&#x9875;">&#x4E0A;&#x4E00;&#x9875;</button>
+          <span id="page" aria-live="polite"></span>
+          <button id="next" aria-label="&#x4E0B;&#x4E00;&#x9875;">&#x4E0B;&#x4E00;&#x9875;</button>
         </div>
       </section>
 
       <section id="detail" class="panel detail-panel">
-        <h2>&#x8BF7;&#x9009;&#x62E9;&#x65B0;&#x95FB;</h2>
+        <div class="detail-empty">
+          <span class="section-kicker">READING VIEW</span>
+          <h2>&#x9009;&#x62E9;&#x4E00;&#x7BC7;&#x65B0;&#x95FB;&#x67E5;&#x770B;&#x5168;&#x6587;</h2>
+          <p>&#x5728;&#x8FD9;&#x91CC;&#x9605;&#x8BFB;&#x8BE6;&#x60C5;&#xFF0C;&#x767B;&#x5F55;&#x540E;&#x8FD8;&#x53EF;&#x751F;&#x6210; AI &#x6458;&#x8981;&#x5E76;&#x7EE7;&#x7EED;&#x8FFD;&#x95EE;&#x3002;</p>
+        </div>
       </section>
     </section>
 
@@ -114,9 +132,9 @@
     </section>
   </main>
 
-  <div class="site-ai">
-    <div class="site-ai-tab">AI</div>
-    <section class="site-ai-panel">
+  <div id="siteAi" class="site-ai">
+    <button id="siteAiTab" class="site-ai-tab" type="button" aria-expanded="false" aria-controls="siteAiPanel">AI</button>
+    <section id="siteAiPanel" class="site-ai-panel" aria-label="AI &#x65B0;&#x95FB;&#x52A9;&#x624B;">
       <h2>AI &#x65B0;&#x95FB;&#x52A9;&#x624B;</h2>
       <p class="muted">&#x8BD5;&#x8BD5;&#x8F93;&#x5165;&#xFF1A;&#x6211;&#x60F3;&#x77E5;&#x9053;&#x6700;&#x8FD1;&#x7684;&#x8D22;&#x7ECF;&#x65B0;&#x95FB;</p>
       <div id="siteAiMessages" class="site-ai-messages"></div>
@@ -127,6 +145,6 @@
     </section>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20260910-4"></script>
 </body>
 </html>

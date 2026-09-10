@@ -169,3 +169,26 @@
 
 - This is intentionally a local reproducibility baseline, not a production claim.
 - Production secrets, TLS, backups, monitoring, migration controls, and rollback verification remain deployment-specific work.
+
+## 2026-09-10 - Homepage and news-list interaction polish
+
+### Scope
+
+- Preserved the sidebar and two-column application structure while clarifying the AI news-workbench identity.
+- Improved list scanning, reading empty state, loading/error/empty feedback, and one-page pagination behavior.
+- Added keyboard-operable news rows, visible focus and selection, and accessible navigation/category state.
+- Reworked the existing responsive rules so news appears in the first mobile viewport without page-level horizontal overflow.
+- Changed the existing AI drawer shell from accidental hover activation to an explicit button with Escape-to-close support.
+- Added cache-busted static asset URLs and recorded before/after browser evidence in `docs/ui-audit/`.
+
+### Verification
+
+- Rebuilt the Compose stack and confirmed all three services reached healthy state.
+- Exercised desktop and mobile layouts, search empty/reset states, keyboard article opening, and AI drawer open/close behavior in the browser.
+- Confirmed 44 px interactive targets, disabled one-page controls, no mobile document overflow, and no browser console errors.
+- Reran JavaScript syntax, Python unit, offline citation, compilation, OpenAPI, dependency, and Compose validation checks before commit.
+
+### Follow-up
+
+- This module does not redesign authentication, article-detail AI calls, or the model provider integration.
+- Public-production readiness still requires deployment-specific security, recovery, and observability work.
