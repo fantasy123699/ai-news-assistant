@@ -251,3 +251,17 @@
 
 - Added regression coverage for tagged reasoning removal and plain-summary preservation.
 - Reran the local LLM unit tests and the project regression suite before commit.
+
+## 2026-09-11 - Portfolio README
+
+### Scope
+
+- Replaced the placeholder repository introduction with a concise project narrative for large-model application-development review.
+- Documented only implemented capabilities: explainable RAG retrieval, source-constrained answers, prompt versioning, evaluation, asynchronous model access, authentication, caching, containers, and CI.
+- Added a repository-safe product screenshot, an architecture flow, feature and technology summaries, reproducible start/test commands, project structure, and explicit production boundaries.
+- Kept unimplemented vector-database and Agent capabilities out of the project claims.
+
+### Verification
+
+- Checked every relative README link and image target against tracked repository files.
+- Revalidated the documented unit-test count, citation fixture result, Compose configuration, OpenAPI generation, dependency integrity, and container health before commit.
