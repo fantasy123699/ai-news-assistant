@@ -6,7 +6,13 @@ from crud import ai as ai_crud
 from crud import news as news_crud
 from routers.user import get_current_user
 from schemas.ai import NewsChatRequest, NewsSummaryRequest, RecommendRequest, SiteChatRequest
-from utils.local_llm import LOCAL_LLM_BASE_URL, LOCAL_LLM_MODEL, LOCAL_LLM_PROVIDER, chat_with_local_llm
+from utils.local_llm import (
+    LOCAL_LLM_BASE_URL,
+    LOCAL_LLM_MODEL,
+    LOCAL_LLM_PROVIDER,
+    chat_with_local_llm,
+    extract_final_answer,
+)
 from utils.prompts import SITE_NEWS_CHAT_PROMPT_VERSION, build_site_news_chat_messages
 from utils.retrieval import detect_category, extract_search_terms
 
@@ -128,14 +134,18 @@ async def summarize_news(
 1. 只总结新闻内容，不要编造事实。
 2. 控制在 120 字以内。
 3. 语言清晰、自然。
+4. 只输出最终摘要正文，不要输出分析、推理或思考过程，也不要使用 think、analysis 等标签。
 
 {build_news_text(news)}
 """
 
-    answer = await chat_with_local_llm([
+    raw_answer = await chat_with_local_llm([
         {"role": "system", "content": "你是一个专业的中文新闻编辑助手。"},
         {"role": "user", "content": prompt},
     ])
+    answer = extract_final_answer(raw_answer)
+    if not answer:
+        raise HTTPException(status_code=502, detail="LLM service returned no final answer")
 
     await ai_crud.save_ai_chat(db, current_user.id, f"总结新闻：{news.title}", answer)
 

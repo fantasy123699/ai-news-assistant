@@ -39,6 +39,30 @@ class LocalLlmClientTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result, "answer")
 
+    def test_extract_final_answer_removes_tagged_reasoning(self):
+        result = local_llm.extract_final_answer(
+            "<think>internal reasoning</think>\n最终答案：简洁摘要"
+        )
+
+        self.assertEqual(result, "简洁摘要")
+
+    def test_extract_final_answer_preserves_plain_content(self):
+        result = local_llm.extract_final_answer("  普通摘要  ")
+
+        self.assertEqual(result, "普通摘要")
+
+    def test_extract_final_answer_uses_explicit_final_marker(self):
+        result = local_llm.extract_final_answer(
+            "分析过程不应展示。\n最终答案：只展示这段摘要"
+        )
+
+        self.assertEqual(result, "只展示这段摘要")
+
+    def test_extract_final_answer_rejects_unclosed_reasoning(self):
+        result = local_llm.extract_final_answer("<think>尚未生成最终答案")
+
+        self.assertEqual(result, "")
+
     async def test_openai_compatible_provider_uses_chat_completions(self):
         client = self.make_client(
             make_response(200, {"choices": [{"message": {"content": "answer"}}]})

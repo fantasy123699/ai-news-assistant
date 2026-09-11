@@ -237,3 +237,17 @@
 
 - Login rate limiting, hashed/rotated session tokens, secure cookie storage, and password recovery remain P1 work before broad public exposure.
 - The current decision remains scoped to a local portfolio demonstration, not a public production launch.
+
+## 2026-09-11 - AI summary final-answer filtering
+
+### Scope
+
+- Kept the existing AI reading interface and summary API contract unchanged.
+- Updated the summary prompt to request only the final Chinese summary, without analysis or reasoning text.
+- Removed tagged `think`, `analysis`, and `reasoning` blocks before saving or returning a generated summary.
+- Return an upstream-response error instead of exposing reasoning when no final answer remains.
+
+### Verification
+
+- Added regression coverage for tagged reasoning removal and plain-summary preservation.
+- Reran the local LLM unit tests and the project regression suite before commit.

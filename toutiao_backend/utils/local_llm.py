@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import time
 
 import httpx
@@ -17,6 +18,29 @@ from config.settings import (
 
 logger = logging.getLogger(__name__)
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+REASONING_BLOCK_PATTERN = re.compile(
+    r"<(think|analysis|reasoning)\b[^>]*>.*?</\1>",
+    flags=re.IGNORECASE | re.DOTALL,
+)
+REASONING_OPEN_PATTERN = re.compile(
+    r"<(?:think|analysis|reasoning)\b[^>]*>",
+    flags=re.IGNORECASE,
+)
+FINAL_ANSWER_PATTERN = re.compile(
+    r"(?:^|\n)\s*(?:最终答案|final answer)\s*[:：]\s*",
+    flags=re.IGNORECASE,
+)
+
+
+def extract_final_answer(content: str) -> str:
+    """Remove tagged model reasoning while preserving the user-facing answer."""
+    answer = REASONING_BLOCK_PATTERN.sub("", content).strip()
+    markers = list(FINAL_ANSWER_PATTERN.finditer(answer))
+    if markers:
+        answer = answer[markers[-1].end():].strip()
+    if REASONING_OPEN_PATTERN.search(answer):
+        return ""
+    return answer
 
 
 async def _post_json(url: str, payload: dict):
