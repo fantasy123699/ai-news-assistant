@@ -214,3 +214,26 @@
 
 - Exercise authenticated summary and article-question requests against the intended model provider before a public production claim.
 - Streaming responses, token/cost telemetry, and richer citation presentation remain separate product modules.
+
+## 2026-09-11 - Authentication and profile interaction polish
+
+### Scope
+
+- Preserved the current account routes and application shell while clarifying login, registration, profile editing, and logout tasks.
+- Added persistent field labels, password-manager autocomplete, practical requirements, linked inline validation, and focus recovery.
+- Replaced alert-only outcomes and unhandled submit failures with disabled/loading and inline success/error states.
+- Prefilled current profile data, submitted only changed values, supported intentional clearing, and explained no-change saves.
+- Escaped user-controlled profile content and localized gender/date presentation.
+- Kept registration associated with the `我的` navigation state and recorded desktop/mobile browser evidence in `docs/ui-audit/auth-profile/`.
+
+### Verification
+
+- Exercised empty and rejected login, registration validation, authenticated profile loading, no-change save, successful update, refresh persistence, and logout.
+- Used a temporary local-only account for the browser flow and removed the account plus its cascaded session data afterward.
+- Checked the entry and profile surfaces at desktop and 390×844 mobile sizes.
+- Reran JavaScript syntax, Python unit, offline citation, compilation, OpenAPI, dependency, Compose, container-health, and browser-log checks before commit.
+
+### Follow-up
+
+- Login rate limiting, hashed/rotated session tokens, secure cookie storage, and password recovery remain P1 work before broad public exposure.
+- The current decision remains scoped to a local portfolio demonstration, not a public production launch.

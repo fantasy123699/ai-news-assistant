@@ -6,13 +6,19 @@ const text = {
   noRelated: "\u6682\u65e0\u76f8\u5173\u63a8\u8350",
   views: "\u6b21\u6d4f\u89c8",
   loginFirst: "\u8bf7\u5148\u767b\u5f55",
-  loginSuccess: "\u767b\u5f55\u6210\u529f",
-  registerSuccess: "\u6ce8\u518c\u6210\u529f\uff0c\u5df2\u81ea\u52a8\u767b\u5f55",
-  logoutSuccess: "\u5df2\u9000\u51fa\u767b\u5f55",
   favoriteSuccess: "\u6536\u85cf\u6210\u529f",
   removeFavoriteSuccess: "\u53d6\u6d88\u6536\u85cf\u6210\u529f",
   clearSuccess: "\u6e05\u7a7a\u6210\u529f",
-  saveSuccess: "\u4fdd\u5b58\u6210\u529f",
+  usernameRequired: "\u8bf7\u8f93\u5165\u7528\u6237\u540d\u3002",
+  usernameLength: "\u7528\u6237\u540d\u9700\u8981 3\u201350 \u4e2a\u5b57\u7b26\u3002",
+  passwordRequired: "\u8bf7\u8f93\u5165\u5bc6\u7801\u3002",
+  passwordLength: "\u5bc6\u7801\u81f3\u5c11\u9700\u8981 8 \u4e2a\u5b57\u7b26\u3002",
+  passwordBytes: "\u5bc6\u7801\u4e0d\u80fd\u8d85\u8fc7 72 \u4e2a UTF-8 \u5b57\u8282\u3002",
+  loginWorking: "\u6b63\u5728\u9a8c\u8bc1\u8d26\u53f7...",
+  registerWorking: "\u6b63\u5728\u521b\u5efa\u8d26\u53f7...",
+  profileWorking: "\u6b63\u5728\u4fdd\u5b58...",
+  noProfileChanges: "\u8d44\u6599\u6ca1\u6709\u53d8\u66f4\uff0c\u65e0\u9700\u4fdd\u5b58\u3002",
+  sessionExpired: "\u767b\u5f55\u72b6\u6001\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u3002",
   aiWorking: "AI \u6b63\u5728\u601d\u8003...",
   aiSummary: "\u751f\u6210 AI \u6458\u8981",
   aiAsk: "\u53d1\u9001\u95ee\u9898",
@@ -43,7 +49,8 @@ let state = {
   total: 0,
   selectedNewsId: "",
   token: localStorage.getItem("token") || "",
-  currentUser: null
+  currentUser: null,
+  authFeedback: ""
 };
 
 const $ = (id) => document.getElementById(id);
@@ -56,13 +63,20 @@ function headers(extra = {}) {
 
 async function request(url, options = {}) {
   const res = await fetch(url, { ...options, headers: headers(options.headers || {}) });
-  if (!res.ok) throw new Error(formatError(await res.text()));
+  if (!res.ok) {
+    const error = new Error(formatError(await res.text()));
+    error.status = res.status;
+    throw error;
+  }
   return res.json();
 }
 
 function formatError(rawText) {
   try {
     const data = JSON.parse(rawText);
+    if (Array.isArray(data.detail)) {
+      return data.detail.map(item => item.msg || String(item)).join("\uff1b");
+    }
     return data.detail || rawText;
   } catch (err) {
     return rawText;
@@ -88,6 +102,41 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function setFormFeedback(id, message = "", tone = "") {
+  const feedback = $(id);
+  if (!feedback) return;
+  feedback.className = `form-feedback${tone ? ` ${tone}` : ""}`;
+  feedback.setAttribute("role", tone === "error" ? "alert" : "status");
+  feedback.innerText = message;
+}
+
+function setFieldError(inputId, errorId, message = "") {
+  const input = $(inputId);
+  const error = $(errorId);
+  if (!input || !error) return;
+  input.toggleAttribute("aria-invalid", Boolean(message));
+  error.innerText = message;
+}
+
+function setFormBusy(form, busy, pendingLabel) {
+  const submit = form.querySelector('button[type="submit"]');
+  if (!submit) return;
+  if (busy) submit.dataset.idleLabel = submit.innerText;
+  form.setAttribute("aria-busy", String(busy));
+  form.querySelectorAll("input, select, textarea, button").forEach(item => {
+    item.disabled = busy;
+  });
+  submit.innerText = busy ? pendingLabel : submit.dataset.idleLabel;
+}
+
+function friendlyAuthError(error, fallback) {
+  const message = String(error?.message || "");
+  if (message.includes("Wrong username or password")) return "\u7528\u6237\u540d\u6216\u5bc6\u7801\u4e0d\u6b63\u786e\uff0c\u8bf7\u91cd\u65b0\u8f93\u5165\u3002";
+  if (message.includes("Username already exists")) return "\u8be5\u7528\u6237\u540d\u5df2\u88ab\u4f7f\u7528\uff0c\u8bf7\u66f4\u6362\u4e00\u4e2a\u3002";
+  if (message.includes("Phone already exists")) return "\u8be5\u624b\u673a\u53f7\u5df2\u7ed1\u5b9a\u5176\u4ed6\u8d26\u53f7\u3002";
+  return fallback;
 }
 
 function renderDetailAiAnswer(label, content, tone = "") {
@@ -145,7 +194,8 @@ function showView(viewName) {
     item.removeAttribute("aria-current");
   });
   $(`${viewName}View`).classList.remove("hidden");
-  const navButton = document.querySelector(`.nav-btn[data-view="${viewName}"]`);
+  const navViewName = viewName === "register" ? "profile" : viewName;
+  const navButton = document.querySelector(`.nav-btn[data-view="${navViewName}"]`);
   if (navButton) {
     navButton.classList.add("active");
     navButton.setAttribute("aria-current", "page");
@@ -159,6 +209,7 @@ function renderLoginStatus() {
   $("loginStatus").innerText = state.currentUser
     ? `${text.loggedIn}: ${state.currentUser.nickname || state.currentUser.username}`
     : text.notLoggedIn;
+  $("loginStatus").classList.toggle("signed-in", Boolean(state.currentUser));
   $("logout").classList.toggle("hidden", !state.token);
   syncDetailAiAccess();
 }
@@ -190,39 +241,67 @@ async function loadCurrentUser() {
     state.token = "";
     state.currentUser = null;
     localStorage.removeItem("token");
+    state.authFeedback = text.sessionExpired;
   }
   renderLoginStatus();
+}
+
+function formatGender(value) {
+  return { male: "\u7537", female: "\u5973", unknown: "\u672a\u8bf4\u660e" }[value] || "\u672a\u8bf4\u660e";
+}
+
+function formatProfileDate(value) {
+  if (!value) return "\u672a\u77e5";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("zh-CN");
+}
+
+function syncProfileForm() {
+  const form = $("updateForm");
+  if (!form || !state.currentUser) return;
+  ["nickname", "avatar", "phone", "bio"].forEach(name => {
+    const field = form.elements.namedItem(name);
+    const value = state.currentUser[name] || "";
+    field.value = value;
+    field.defaultValue = value;
+  });
+  form.elements.namedItem("gender").value = state.currentUser.gender || "unknown";
 }
 
 function renderUserInfo() {
   if (!state.currentUser) {
     $("authPanel").classList.remove("hidden");
     $("userPanel").classList.add("hidden");
+    if (state.authFeedback) {
+      setFormFeedback("loginFeedback", state.authFeedback, "error");
+      state.authFeedback = "";
+    }
     return;
   }
   $("authPanel").classList.add("hidden");
   $("userPanel").classList.remove("hidden");
-  const displayName = state.currentUser.nickname || state.currentUser.username || "";
+  const displayName = escapeHtml(state.currentUser.nickname || state.currentUser.username || "");
   const firstLetter = displayName ? displayName.slice(0, 1).toUpperCase() : "U";
   const avatar = state.currentUser.avatar
-    ? `<img src="${state.currentUser.avatar}" alt="${displayName}">`
+    ? `<img src="${escapeHtml(state.currentUser.avatar)}" alt="${displayName}">`
     : firstLetter;
   $("userInfo").innerHTML = `
     <div class="profile-card">
       <div class="avatar">${avatar}</div>
       <div>
         <h2 class="profile-name">${displayName}</h2>
-        <p class="profile-meta">@${state.currentUser.username || ""} · ID ${state.currentUser.id}</p>
-        <p class="profile-bio">${state.currentUser.bio || "\u8fd9\u4e2a\u7528\u6237\u8fd8\u6ca1\u6709\u586b\u5199\u4e2a\u4eba\u7b80\u4ecb"}</p>
+        <p class="profile-meta">@${escapeHtml(state.currentUser.username || "")} · ID ${state.currentUser.id}</p>
+        <p class="profile-bio">${escapeHtml(state.currentUser.bio || "\u8fd9\u4e2a\u7528\u6237\u8fd8\u6ca1\u6709\u586b\u5199\u4e2a\u4eba\u7b80\u4ecb")}</p>
       </div>
     </div>
     <div class="info-grid">
-      <div class="info-cell"><span class="info-label">\u6635\u79f0</span><span class="info-value">${state.currentUser.nickname || "\u672a\u8bbe\u7f6e"}</span></div>
-      <div class="info-cell"><span class="info-label">\u624b\u673a\u53f7</span><span class="info-value">${state.currentUser.phone || "\u672a\u586b\u5199"}</span></div>
-      <div class="info-cell"><span class="info-label">\u6027\u522b</span><span class="info-value">${state.currentUser.gender || "unknown"}</span></div>
-      <div class="info-cell"><span class="info-label">\u521b\u5efa\u65f6\u95f4</span><span class="info-value">${state.currentUser.created_at || ""}</span></div>
+      <div class="info-cell"><span class="info-label">\u6635\u79f0</span><span class="info-value">${escapeHtml(state.currentUser.nickname || "\u672a\u8bbe\u7f6e")}</span></div>
+      <div class="info-cell"><span class="info-label">\u624b\u673a\u53f7</span><span class="info-value">${escapeHtml(state.currentUser.phone || "\u672a\u586b\u5199")}</span></div>
+      <div class="info-cell"><span class="info-label">\u6027\u522b</span><span class="info-value">${formatGender(state.currentUser.gender)}</span></div>
+      <div class="info-cell"><span class="info-label">\u521b\u5efa\u65f6\u95f4</span><span class="info-value">${escapeHtml(formatProfileDate(state.currentUser.created_at))}</span></div>
     </div>
   `;
+  syncProfileForm();
 }
 
 async function refreshUserPanel() {
@@ -563,64 +642,168 @@ $("list").addEventListener("keydown", async (event) => {
 });
 
 document.addEventListener("input", (event) => {
-  if (event.target.id !== "aiQuestion") return;
-  event.target.removeAttribute("aria-invalid");
-  $("aiQuestionError").innerText = "";
+  if (event.target.id === "aiQuestion") {
+    event.target.removeAttribute("aria-invalid");
+    $("aiQuestionError").innerText = "";
+  }
+  const fieldErrors = {
+    loginUsername: "loginUsernameError",
+    loginPassword: "loginPasswordError",
+    registerUsername: "registerUsernameError",
+    registerPassword: "registerPasswordError"
+  };
+  if (fieldErrors[event.target.id]) {
+    setFieldError(event.target.id, fieldErrors[event.target.id]);
+  }
 });
 
 $("loginForm").onsubmit = async (event) => {
   event.preventDefault();
-  const data = Object.fromEntries(new FormData(event.target).entries());
-  const result = await requestJson("/user/login", "POST", data);
-  state.token = result.token;
-  localStorage.setItem("token", state.token);
-  state.currentUser = result.user;
-  renderLoginStatus();
-  renderUserInfo();
-  showView("profile");
-  alert(text.loginSuccess);
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.username = data.username.trim();
+  setFormFeedback("loginFeedback");
+  setFieldError("loginUsername", "loginUsernameError");
+  setFieldError("loginPassword", "loginPasswordError");
+  if (!data.username) {
+    setFieldError("loginUsername", "loginUsernameError", text.usernameRequired);
+    $("loginUsername").focus();
+    return;
+  }
+  if (!data.password) {
+    setFieldError("loginPassword", "loginPasswordError", text.passwordRequired);
+    $("loginPassword").focus();
+    return;
+  }
+  setFormBusy(form, true, text.loginWorking);
+  try {
+    const result = await requestJson("/user/login", "POST", data);
+    state.token = result.token;
+    localStorage.setItem("token", state.token);
+    state.currentUser = result.user;
+    form.reset();
+    renderLoginStatus();
+    renderUserInfo();
+    showView("profile");
+    setFormFeedback("profileFeedback", "\u767b\u5f55\u6210\u529f\uff0cAI \u6458\u8981\u3001\u8ffd\u95ee\u548c\u6536\u85cf\u529f\u80fd\u5df2\u89e3\u9501\u3002", "success");
+  } catch (err) {
+    setFormFeedback("loginFeedback", friendlyAuthError(err, "\u6682\u65f6\u65e0\u6cd5\u767b\u5f55\uff0c\u8bf7\u68c0\u67e5\u8f93\u5165\u540e\u91cd\u8bd5\u3002"), "error");
+    $("loginFeedback").focus();
+  } finally {
+    setFormBusy(form, false, "");
+  }
 };
 
 $("registerForm").onsubmit = async (event) => {
   event.preventDefault();
-  const data = Object.fromEntries(new FormData(event.target).entries());
-  await requestJson("/user/register", "POST", data);
-  const result = await requestJson("/user/login", "POST", { username: data.username, password: data.password });
-  state.token = result.token;
-  localStorage.setItem("token", state.token);
-  state.currentUser = result.user;
-  renderLoginStatus();
-  renderUserInfo();
-  showView("profile");
-  alert(text.registerSuccess);
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.username = data.username.trim();
+  data.nickname = data.nickname.trim();
+  data.phone = data.phone.trim();
+  setFormFeedback("registerFeedback");
+  setFieldError("registerUsername", "registerUsernameError");
+  setFieldError("registerPassword", "registerPasswordError");
+  if (data.username.length < 3 || data.username.length > 50) {
+    setFieldError("registerUsername", "registerUsernameError", text.usernameLength);
+    $("registerUsername").focus();
+    return;
+  }
+  if (data.password.length < 8) {
+    setFieldError("registerPassword", "registerPasswordError", text.passwordLength);
+    $("registerPassword").focus();
+    return;
+  }
+  if (new TextEncoder().encode(data.password).length > 72) {
+    setFieldError("registerPassword", "registerPasswordError", text.passwordBytes);
+    $("registerPassword").focus();
+    return;
+  }
+  if (!data.nickname) delete data.nickname;
+  if (!data.phone) delete data.phone;
+  setFormBusy(form, true, text.registerWorking);
+  try {
+    await requestJson("/user/register", "POST", data);
+    const result = await requestJson("/user/login", "POST", { username: data.username, password: data.password });
+    state.token = result.token;
+    localStorage.setItem("token", state.token);
+    state.currentUser = result.user;
+    form.reset();
+    renderLoginStatus();
+    renderUserInfo();
+    showView("profile");
+    setFormFeedback("profileFeedback", "\u8d26\u53f7\u5df2\u521b\u5efa\u5e76\u767b\u5f55\uff0c\u4f60\u53ef\u4ee5\u7ee7\u7eed\u5b8c\u5584\u8d44\u6599\u3002", "success");
+  } catch (err) {
+    setFormFeedback("registerFeedback", friendlyAuthError(err, "\u6682\u65f6\u65e0\u6cd5\u521b\u5efa\u8d26\u53f7\uff0c\u8bf7\u68c0\u67e5\u8f93\u5165\u540e\u91cd\u8bd5\u3002"), "error");
+    $("registerFeedback").focus();
+  } finally {
+    setFormBusy(form, false, "");
+  }
 };
 
 $("showRegister").onclick = () => {
+  setFormFeedback("loginFeedback");
   showView("register");
 };
 
 $("showLogin").onclick = () => {
+  setFormFeedback("registerFeedback");
   showView("profile");
 };
 
 $("updateForm").onsubmit = async (event) => {
   event.preventDefault();
-  const data = Object.fromEntries(new FormData(event.target).entries());
-  Object.keys(data).forEach(key => { if (data[key] === "") delete data[key]; });
-  state.currentUser = await requestJson("/user/update", "PUT", data);
-  renderLoginStatus();
-  renderUserInfo();
-  alert(text.saveSuccess);
+  const form = event.target;
+  const values = Object.fromEntries(new FormData(form).entries());
+  const data = {};
+  Object.entries(values).forEach(([key, value]) => {
+    const normalized = typeof value === "string" ? value.trim() : value;
+    if (String(normalized) !== String(state.currentUser[key] || (key === "gender" ? "unknown" : ""))) {
+      data[key] = normalized;
+    }
+  });
+  setFormFeedback("profileFeedback");
+  if (!Object.keys(data).length) {
+    setFormFeedback("profileFeedback", text.noProfileChanges);
+    return;
+  }
+  setFormBusy(form, true, text.profileWorking);
+  try {
+    state.currentUser = await requestJson("/user/update", "PUT", data);
+    renderLoginStatus();
+    renderUserInfo();
+    setFormFeedback("profileFeedback", "\u8d44\u6599\u5df2\u4fdd\u5b58\uff0c\u9875\u9762\u4fe1\u606f\u5df2\u540c\u6b65\u66f4\u65b0\u3002", "success");
+  } catch (err) {
+    setFormFeedback("profileFeedback", friendlyAuthError(err, "\u6682\u65f6\u65e0\u6cd5\u4fdd\u5b58\u8d44\u6599\uff0c\u8bf7\u68c0\u67e5\u8f93\u5165\u540e\u91cd\u8bd5\u3002"), "error");
+    $("profileFeedback").focus();
+  } finally {
+    setFormBusy(form, false, "");
+  }
 };
 
 $("logout").onclick = async () => {
-  if (state.token) await request("/user/logout", { method: "POST" });
+  const button = $("logout");
+  button.disabled = true;
+  button.innerText = "\u6b63\u5728\u9000\u51fa...";
+  let logoutConfirmed = true;
+  try {
+    if (state.token) await request("/user/logout", { method: "POST" });
+  } catch (err) {
+    logoutConfirmed = false;
+  }
   state.token = "";
   state.currentUser = null;
   localStorage.removeItem("token");
   renderLoginStatus();
   renderUserInfo();
-  alert(text.logoutSuccess);
+  showView("profile");
+  setFormFeedback(
+    "loginFeedback",
+    logoutConfirmed ? "\u5df2\u5b89\u5168\u9000\u51fa\u5f53\u524d\u8d26\u53f7\u3002" : "\u5df2\u4ece\u672c\u673a\u9000\u51fa\uff0c\u4f46\u670d\u52a1\u5668\u4f1a\u8bdd\u672a\u80fd\u786e\u8ba4\u5173\u95ed\u3002",
+    logoutConfirmed ? "success" : "error"
+  );
+  button.disabled = false;
+  button.innerText = "\u9000\u51fa";
 };
 
 $("clearFavorites").onclick = async () => {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>&#x65B0;&#x95FB;&#x7BA1;&#x7406;</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260910-5">
+  <link rel="stylesheet" href="/static/styles.css?v=20260911-2">
 </head>
 <body>
   <aside class="sidebar">
@@ -30,8 +30,8 @@
         <p>&#x68C0;&#x7D22;&#x3001;&#x9605;&#x8BFB;&#xFF0C;&#x5E76;&#x57FA;&#x4E8E;&#x7AD9;&#x5185;&#x65B0;&#x95FB;&#x5411;&#x672C;&#x5730;&#x6A21;&#x578B;&#x63D0;&#x95EE;</p>
       </div>
       <div class="auth-box">
-        <span id="loginStatus">&#x672A;&#x767B;&#x5F55;</span>
-        <button id="logout" class="hidden">&#x9000;&#x51FA;</button>
+        <span id="loginStatus" class="account-status" aria-live="polite">&#x672A;&#x767B;&#x5F55;</span>
+        <button id="logout" type="button" class="hidden secondary-btn">&#x9000;&#x51FA;</button>
       </div>
     </header>
 
@@ -70,42 +70,102 @@
 
     <section id="profileView" class="view hidden">
       <section id="authPanel" class="auth-card">
-        <form id="loginForm" class="panel form-panel">
-          <h2>&#x767B;&#x5F55;</h2>
-          <input name="username" placeholder="&#x7528;&#x6237;&#x540D;" required>
-          <input name="password" type="password" placeholder="&#x5BC6;&#x7801;" required>
-          <button type="submit">&#x767B;&#x5F55;</button>
+        <form id="loginForm" class="panel form-panel" novalidate>
+          <div class="auth-heading">
+            <span class="section-kicker">ACCOUNT ACCESS</span>
+            <h2>&#x767B;&#x5F55;&#x5DE5;&#x4F5C;&#x53F0;</h2>
+            <p>&#x767B;&#x5F55;&#x540E;&#x53EF;&#x4F7F;&#x7528; AI &#x6458;&#x8981;&#x3001;&#x6587;&#x7AE0;&#x8FFD;&#x95EE;&#x3001;&#x6536;&#x85CF;&#x548C;&#x5386;&#x53F2;&#x8BB0;&#x5F55;&#x3002;</p>
+          </div>
+          <div id="loginFeedback" class="form-feedback" role="status" aria-live="polite" tabindex="-1"></div>
+          <div class="field-group">
+            <label for="loginUsername">&#x7528;&#x6237;&#x540D;</label>
+            <input id="loginUsername" name="username" autocomplete="username" maxlength="50" aria-describedby="loginUsernameError" required>
+            <p id="loginUsernameError" class="field-error" role="alert"></p>
+          </div>
+          <div class="field-group">
+            <label for="loginPassword">&#x5BC6;&#x7801;</label>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" maxlength="128" aria-describedby="loginPasswordError" required>
+            <p id="loginPasswordError" class="field-error" role="alert"></p>
+          </div>
+          <button id="loginSubmit" class="primary-btn" type="submit">&#x767B;&#x5F55;&#x5E76;&#x7EE7;&#x7EED;</button>
           <button type="button" id="showRegister" class="link-btn">&#x8FD8;&#x6CA1;&#x6709;&#x8D26;&#x53F7;&#xFF1F;&#x53BB;&#x6CE8;&#x518C;</button>
         </form>
       </section>
 
       <section id="userPanel" class="panel hidden">
         <div id="userInfo"></div>
-        <form id="updateForm" class="form-row">
-          <input name="nickname" placeholder="&#x6635;&#x79F0;">
-          <input name="avatar" placeholder="&#x5934;&#x50CF; URL">
-          <input name="phone" placeholder="&#x624B;&#x673A;&#x53F7;">
-          <select name="gender">
-            <option value="">&#x6027;&#x522B;</option>
-            <option value="unknown">unknown</option>
-            <option value="male">male</option>
-            <option value="female">female</option>
-          </select>
-          <input name="bio" placeholder="&#x4E2A;&#x4EBA;&#x7B80;&#x4ECB;">
-          <button type="submit">&#x4FDD;&#x5B58;</button>
+        <form id="updateForm" class="profile-edit" novalidate>
+          <div class="profile-edit-heading">
+            <div>
+              <span class="section-kicker">PROFILE SETTINGS</span>
+              <h3>&#x7F16;&#x8F91;&#x8D26;&#x53F7;&#x8D44;&#x6599;</h3>
+            </div>
+            <span>&#x4EC5;&#x4FDD;&#x5B58;&#x4F60;&#x4FEE;&#x6539;&#x7684;&#x5185;&#x5BB9;</span>
+          </div>
+          <div id="profileFeedback" class="form-feedback" role="status" aria-live="polite" tabindex="-1"></div>
+          <div class="profile-form-grid">
+            <div class="field-group">
+              <label for="profileNickname">&#x6635;&#x79F0;</label>
+              <input id="profileNickname" name="nickname" autocomplete="nickname" maxlength="50">
+            </div>
+            <div class="field-group">
+              <label for="profilePhone">&#x624B;&#x673A;&#x53F7;</label>
+              <input id="profilePhone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="20">
+            </div>
+            <div class="field-group profile-field-wide">
+              <label for="profileAvatar">&#x5934;&#x50CF;&#x94FE;&#x63A5;</label>
+              <input id="profileAvatar" name="avatar" type="url" autocomplete="url" maxlength="255" placeholder="https://example.com/avatar.jpg">
+            </div>
+            <div class="field-group">
+              <label for="profileGender">&#x6027;&#x522B;</label>
+              <select id="profileGender" name="gender">
+                <option value="unknown">&#x672A;&#x8BF4;&#x660E;</option>
+                <option value="male">&#x7537;</option>
+                <option value="female">&#x5973;</option>
+              </select>
+            </div>
+            <div class="field-group profile-field-wide">
+              <label for="profileBio">&#x4E2A;&#x4EBA;&#x7B80;&#x4ECB;</label>
+              <textarea id="profileBio" name="bio" maxlength="500" rows="4"></textarea>
+            </div>
+          </div>
+          <div class="profile-actions">
+            <button id="profileSubmit" class="primary-btn" type="submit">&#x4FDD;&#x5B58;&#x8D44;&#x6599;</button>
+          </div>
         </form>
       </section>
     </section>
 
     <section id="registerView" class="view hidden">
       <section class="auth-card">
-        <form id="registerForm" class="panel form-panel">
-          <h2>&#x6CE8;&#x518C;</h2>
-          <input name="username" placeholder="&#x7528;&#x6237;&#x540D;" required>
-          <input name="password" type="password" placeholder="&#x5BC6;&#x7801;" required>
-          <input name="nickname" placeholder="&#x6635;&#x79F0;">
-          <input name="phone" placeholder="&#x624B;&#x673A;&#x53F7;&#xFF08;&#x53EF;&#x9009;&#xFF09;">
-          <button type="submit">&#x6CE8;&#x518C;</button>
+        <form id="registerForm" class="panel form-panel" novalidate>
+          <div class="auth-heading">
+            <span class="section-kicker">CREATE ACCOUNT</span>
+            <h2>&#x521B;&#x5EFA;&#x8D26;&#x53F7;</h2>
+            <p>&#x4E00;&#x6B21;&#x6CE8;&#x518C;&#xFF0C;&#x5373;&#x53EF;&#x4FDD;&#x7559;&#x9605;&#x8BFB;&#x8BB0;&#x5F55;&#x5E76;&#x4F7F;&#x7528;&#x7AD9;&#x5185; AI &#x80FD;&#x529B;&#x3002;</p>
+          </div>
+          <div id="registerFeedback" class="form-feedback" role="status" aria-live="polite" tabindex="-1"></div>
+          <div class="field-group">
+            <label for="registerUsername">&#x7528;&#x6237;&#x540D;</label>
+            <input id="registerUsername" name="username" autocomplete="username" minlength="3" maxlength="50" aria-describedby="registerUsernameHelp registerUsernameError" required>
+            <p id="registerUsernameHelp" class="field-help">3&#x2013;50 &#x4E2A;&#x5B57;&#x7B26;&#xFF0C;&#x7528;&#x4E8E;&#x540E;&#x7EED;&#x767B;&#x5F55;&#x3002;</p>
+            <p id="registerUsernameError" class="field-error" role="alert"></p>
+          </div>
+          <div class="field-group">
+            <label for="registerPassword">&#x5BC6;&#x7801;</label>
+            <input id="registerPassword" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" aria-describedby="registerPasswordHelp registerPasswordError" required>
+            <p id="registerPasswordHelp" class="field-help">&#x81F3;&#x5C11; 8 &#x4E2A;&#x5B57;&#x7B26;&#xFF0C;&#x652F;&#x6301;&#x5BC6;&#x7801;&#x7BA1;&#x7406;&#x5668;&#x548C;&#x7C98;&#x8D34;&#x3002;</p>
+            <p id="registerPasswordError" class="field-error" role="alert"></p>
+          </div>
+          <div class="field-group">
+            <label for="registerNickname">&#x6635;&#x79F0; <span>&#x53EF;&#x9009;</span></label>
+            <input id="registerNickname" name="nickname" autocomplete="nickname" maxlength="50">
+          </div>
+          <div class="field-group">
+            <label for="registerPhone">&#x624B;&#x673A;&#x53F7; <span>&#x53EF;&#x9009;</span></label>
+            <input id="registerPhone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="20">
+          </div>
+          <button id="registerSubmit" class="primary-btn" type="submit">&#x6CE8;&#x518C;&#x5E76;&#x767B;&#x5F55;</button>
           <button type="button" id="showLogin" class="link-btn">&#x5DF2;&#x6709;&#x8D26;&#x53F7;&#xFF1F;&#x53BB;&#x767B;&#x5F55;</button>
         </form>
       </section>
@@ -145,6 +205,6 @@
     </section>
   </div>
 
-  <script src="/static/app.js?v=20260910-5"></script>
+  <script src="/static/app.js?v=20260911-2"></script>
 </body>
 </html>

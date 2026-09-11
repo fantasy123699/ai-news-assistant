@@ -10,5 +10,8 @@ venv/
 .ruff_cache/
 *.log
 
+# Local UI audit captures can contain synthetic account data.
+docs/ui-audit/auth-profile/*.png
+
 .idea/
 .vscode/
