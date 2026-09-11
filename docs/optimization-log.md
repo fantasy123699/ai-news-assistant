@@ -265,3 +265,25 @@
 
 - Checked every relative README link and image target against tracked repository files.
 - Revalidated the documented unit-test count, citation fixture result, Compose configuration, OpenAPI generation, dependency integrity, and container health before commit.
+
+## 2026-09-11 - Saved reading and history interaction polish
+
+### Scope
+
+- Preserved the existing favorite/history routes, API contracts, data structure, application shell, and visual tokens.
+- Added shared loading, empty, unauthenticated, failure, retry, count, timestamp, and inline result states for saved content.
+- Escaped server-provided item content and exposed each article title as a native keyboard-accessible open control.
+- Added disabled/busy feedback for single-record removal and replaced immediate bulk deletion with an inline, cancellable two-step confirmation.
+- Kept the implementation dependency-free and documented the scoped UX/accessibility/readiness review in `docs/ui-audit/saved-content/saved-content.md`.
+
+### Verification
+
+- Compared the history page before and after at the same desktop viewport in the Codex in-app browser.
+- Verified favorite empty state, history populated state, counts, timestamps, accessible names, no desktop overflow, clear-confirm expansion, cancellation, focus recovery, and record preservation.
+- Avoided mutating the user's existing saved data during browser verification.
+- Reran JavaScript syntax, Python unit, compilation, dependency, Compose, container-health, and application-log checks before commit.
+
+### Follow-up
+
+- Pagination or date grouping can wait until saved histories regularly exceed the current 50-item portfolio scope.
+- The overall project remains conditional for broad public exposure until session hardening, backup/restore, HTTPS, and operational monitoring are verified.

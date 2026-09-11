@@ -8,7 +8,6 @@ const text = {
   loginFirst: "\u8bf7\u5148\u767b\u5f55",
   favoriteSuccess: "\u6536\u85cf\u6210\u529f",
   removeFavoriteSuccess: "\u53d6\u6d88\u6536\u85cf\u6210\u529f",
-  clearSuccess: "\u6e05\u7a7a\u6210\u529f",
   usernameRequired: "\u8bf7\u8f93\u5165\u7528\u6237\u540d\u3002",
   usernameLength: "\u7528\u6237\u540d\u9700\u8981 3\u201350 \u4e2a\u5b57\u7b26\u3002",
   passwordRequired: "\u8bf7\u8f93\u5165\u5bc6\u7801\u3002",
@@ -33,8 +32,6 @@ const text = {
   loadFail: "\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u786e\u8ba4\u540e\u7aef\u548c MySQL \u5df2\u542f\u52a8",
   notLoggedIn: "\u672a\u767b\u5f55",
   loggedIn: "\u5df2\u767b\u5f55",
-  emptyFavorite: "\u6682\u65e0\u6536\u85cf",
-  emptyHistory: "\u6682\u65e0\u5386\u53f2",
   loadingNews: "\u6b63\u5728\u66f4\u65b0\u65b0\u95fb...",
   emptyNews: "\u6ca1\u6709\u627e\u5230\u5339\u914d\u7684\u65b0\u95fb",
   emptyNewsHint: "\u8bd5\u8bd5\u66f4\u6362\u5173\u952e\u8bcd\u6216\u91cd\u7f6e\u7b5b\u9009\u6761\u4ef6",
@@ -102,6 +99,84 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+const savedViewConfig = {
+  favorite: {
+    endpoint: "/favorite/list?page=1&page_size=50",
+    listId: "favoritesList",
+    countId: "favoritesCount",
+    clearId: "clearFavorites",
+    confirmId: "favoritesClearConfirm",
+    feedbackId: "favoritesFeedback",
+    emptyTitle: "还没有收藏",
+    emptyHint: "在新闻详情中点击“收藏”，值得回看的内容会出现在这里。",
+    itemLabel: "篇收藏"
+  },
+  history: {
+    endpoint: "/history/list?page=1&page_size=50",
+    listId: "historyList",
+    countId: "historyCount",
+    clearId: "clearHistory",
+    confirmId: "historyClearConfirm",
+    feedbackId: "historyFeedback",
+    emptyTitle: "还没有浏览记录",
+    emptyHint: "打开一篇新闻后，最近阅读的内容会自动保留在这里。",
+    itemLabel: "条记录"
+  }
+};
+
+function setSavedFeedback(type, message = "", tone = "") {
+  const feedback = $(savedViewConfig[type].feedbackId);
+  feedback.className = `list-status${tone ? ` ${tone}` : ""}`;
+  feedback.setAttribute("role", tone === "error" ? "alert" : "status");
+  feedback.innerText = message;
+}
+
+function setClearPrompt(type, open) {
+  const config = savedViewConfig[type];
+  $(config.confirmId).classList.toggle("hidden", !open);
+  $(config.clearId).setAttribute("aria-expanded", String(open));
+}
+
+function renderSavedState(type, title, hint, action = "browse") {
+  const actionButton = action === "login"
+    ? `<button type="button" class="primary-btn saved-login">去登录</button>`
+    : action === "retry"
+      ? `<button type="button" class="secondary-btn retry-saved" data-type="${type}">重新加载</button>`
+      : `<button type="button" class="primary-btn saved-browse">浏览新闻</button>`;
+  return `
+    <div class="empty-state saved-state">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(hint)}</span>
+      <div class="action-row">${actionButton}</div>
+    </div>
+  `;
+}
+
+function renderSavedSkeleton() {
+  return [1, 2].map(() => `
+    <div class="item saved-skeleton" aria-hidden="true">
+      <div class="skeleton-block"></div>
+      <div class="skeleton-copy">
+        <span class="skeleton-block skeleton-line"></span>
+        <span class="skeleton-block skeleton-line short"></span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function formatSavedTime(value, prefix) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const formatted = new Intl.DateTimeFormat("zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+  return `${prefix}${formatted}`;
 }
 
 function setFormFeedback(id, message = "", tone = "") {
@@ -442,38 +517,66 @@ async function loadDetail(id) {
 }
 
 async function loadFavorites() {
-  if (!state.token) {
-    $("favoritesList").innerHTML = `<p>${text.loginFirst}</p>`;
-    return;
-  }
-  const data = await request("/favorite/list?page=1&page_size=50");
-  $("favoritesList").innerHTML = data.list.length
-    ? data.list.map(item => renderSavedItem(item, "favorite")).join("")
-    : `<p>${text.emptyFavorite}</p>`;
+  return loadSavedItems("favorite");
 }
 
 async function loadHistory() {
+  return loadSavedItems("history");
+}
+
+async function loadSavedItems(type) {
+  const config = savedViewConfig[type];
+  const list = $(config.listId);
+  setClearPrompt(type, false);
+  setSavedFeedback(type);
+  $(config.clearId).disabled = true;
   if (!state.token) {
-    $("historyList").innerHTML = `<p>${text.loginFirst}</p>`;
-    return;
+    $(config.countId).innerText = "登录后可用";
+    list.innerHTML = renderSavedState(type, "登录后查看个人记录", "登录后即可在不同阅读任务之间保存收藏和浏览历史。", "login");
+    list.setAttribute("aria-busy", "false");
+    return false;
   }
-  const data = await request("/history/list?page=1&page_size=50");
-  $("historyList").innerHTML = data.list.length
-    ? data.list.map(item => renderSavedItem(item, "history")).join("")
-    : `<p>${text.emptyHistory}</p>`;
+
+  $(config.countId).innerText = "正在加载";
+  list.setAttribute("aria-busy", "true");
+  list.innerHTML = renderSavedSkeleton();
+  try {
+    const data = await request(config.endpoint);
+    const items = Array.isArray(data.list) ? data.list : [];
+    $(config.countId).innerText = `${data.total ?? items.length} ${config.itemLabel}`;
+    $(config.clearId).disabled = items.length === 0;
+    list.innerHTML = items.length
+      ? items.map(item => renderSavedItem(item, type)).join("")
+      : renderSavedState(type, config.emptyTitle, config.emptyHint);
+    return true;
+  } catch (err) {
+    $(config.countId).innerText = "加载失败";
+    list.innerHTML = renderSavedState(type, "暂时无法加载", "请检查网络或服务状态，然后重新尝试。", "retry");
+    setSavedFeedback(type, err.message || "个人记录加载失败，请稍后重试。", "error");
+    return false;
+  } finally {
+    list.setAttribute("aria-busy", "false");
+  }
 }
 
 function renderSavedItem(item, type) {
   const action = type === "favorite"
-    ? `<button class="remove-favorite" data-id="${item.id}">\u53d6\u6d88\u6536\u85cf</button>`
-    : `<button class="delete-history" data-id="${item.history_id}">\u5220\u9664\u8bb0\u5f55</button>`;
+    ? `<button type="button" class="remove-favorite" data-id="${item.id}" aria-label="取消收藏：${escapeHtml(item.title)}">取消收藏</button>`
+    : `<button type="button" class="delete-history" data-id="${item.history_id}" aria-label="删除历史记录：${escapeHtml(item.title)}">删除记录</button>`;
+  const savedTime = type === "favorite"
+    ? formatSavedTime(item.favorite_time, "收藏于 ")
+    : formatSavedTime(item.view_time, "浏览于 ");
   return `
-    <article class="item" data-id="${item.id}">
-      <img src="${getImage(item.image)}" alt="${item.title}">
-      <div>
-        <h3>${item.title}</h3>
-        <p>${item.description || text.noDesc}</p>
-        <p>${item.category_name || text.unknownCategory} · ${item.views || 0} ${text.views}</p>
+    <article class="item saved-item" data-id="${item.id}">
+      <img src="${escapeHtml(getImage(item.image))}" alt="${escapeHtml(item.title)}">
+      <div class="saved-item-content">
+        <h3><button type="button" class="saved-open" data-id="${item.id}">${escapeHtml(item.title)}</button></h3>
+        <p>${escapeHtml(item.description || text.noDesc)}</p>
+        <div class="item-meta">
+          <span>${escapeHtml(item.category_name || text.unknownCategory)}</span>
+          <span>${Number(item.views) || 0} ${text.views}</span>
+          ${savedTime ? `<span>${escapeHtml(savedTime)}</span>` : ""}
+        </div>
         <div class="action-row">${action}</div>
       </div>
     </article>
@@ -500,9 +603,15 @@ document.addEventListener("click", async (event) => {
   }
 
   const item = event.target.closest(".item");
-  if (item && !event.target.closest("button")) {
+  if (item && !item.classList.contains("saved-skeleton") && !event.target.closest("button")) {
     showView("news");
     await loadDetail(item.dataset.id);
+  }
+
+  const savedOpen = event.target.closest(".saved-open");
+  if (savedOpen) {
+    showView("news");
+    await loadDetail(savedOpen.dataset.id);
   }
 
   const related = event.target.closest(".related");
@@ -586,15 +695,42 @@ document.addEventListener("click", async (event) => {
 
   const removeFavorite = event.target.closest(".remove-favorite");
   if (removeFavorite) {
-    await request(`/favorite/remove?news_id=${removeFavorite.dataset.id}`, { method: "DELETE" });
-    await loadFavorites();
+    const idleLabel = removeFavorite.innerText;
+    removeFavorite.disabled = true;
+    removeFavorite.innerText = "正在取消...";
+    try {
+      await request(`/favorite/remove?news_id=${removeFavorite.dataset.id}`, { method: "DELETE" });
+      if (await loadFavorites()) setSavedFeedback("favorite", "已取消收藏。", "success");
+    } catch (err) {
+      removeFavorite.disabled = false;
+      removeFavorite.innerText = idleLabel;
+      setSavedFeedback("favorite", err.message || "取消收藏失败，请重试。", "error");
+    }
   }
 
   const deleteHistory = event.target.closest(".delete-history");
   if (deleteHistory) {
-    await request(`/history/delete/${deleteHistory.dataset.id}`, { method: "DELETE" });
-    await loadHistory();
+    const idleLabel = deleteHistory.innerText;
+    deleteHistory.disabled = true;
+    deleteHistory.innerText = "正在删除...";
+    try {
+      await request(`/history/delete/${deleteHistory.dataset.id}`, { method: "DELETE" });
+      if (await loadHistory()) setSavedFeedback("history", "已删除这条浏览记录。", "success");
+    } catch (err) {
+      deleteHistory.disabled = false;
+      deleteHistory.innerText = idleLabel;
+      setSavedFeedback("history", err.message || "删除记录失败，请重试。", "error");
+    }
   }
+
+  const savedBrowse = event.target.closest(".saved-browse");
+  if (savedBrowse) showView("news");
+
+  const savedLogin = event.target.closest(".saved-login");
+  if (savedLogin) showView("profile");
+
+  const retrySaved = event.target.closest(".retry-saved");
+  if (retrySaved) await loadSavedItems(retrySaved.dataset.type);
 });
 
 $("newsSearchForm").onsubmit = async (event) => {
@@ -806,19 +942,40 @@ $("logout").onclick = async () => {
   button.innerText = "\u9000\u51fa";
 };
 
-$("clearFavorites").onclick = async () => {
-  if (!state.token) return alert(text.loginFirst);
-  await request("/favorite/clear", { method: "DELETE" });
-  await loadFavorites();
-  alert(text.clearSuccess);
+$("clearFavorites").onclick = () => setClearPrompt("favorite", true);
+$("cancelClearFavorites").onclick = () => {
+  setClearPrompt("favorite", false);
+  $("clearFavorites").focus();
+};
+$("clearHistory").onclick = () => setClearPrompt("history", true);
+$("cancelClearHistory").onclick = () => {
+  setClearPrompt("history", false);
+  $("clearHistory").focus();
 };
 
-$("clearHistory").onclick = async () => {
-  if (!state.token) return alert(text.loginFirst);
-  await request("/history/clear", { method: "DELETE" });
-  await loadHistory();
-  alert(text.clearSuccess);
-};
+async function confirmClearSaved(type) {
+  const isFavorite = type === "favorite";
+  const confirmButton = $(isFavorite ? "confirmClearFavorites" : "confirmClearHistory");
+  const cancelButton = $(isFavorite ? "cancelClearFavorites" : "cancelClearHistory");
+  const idleLabel = confirmButton.innerText;
+  confirmButton.disabled = true;
+  cancelButton.disabled = true;
+  confirmButton.innerText = "正在清空...";
+  try {
+    await request(isFavorite ? "/favorite/clear" : "/history/clear", { method: "DELETE" });
+    if (await loadSavedItems(type)) {
+      setSavedFeedback(type, isFavorite ? "收藏已全部清空。" : "浏览历史已全部清空。", "success");
+    }
+  } catch (err) {
+    confirmButton.disabled = false;
+    cancelButton.disabled = false;
+    confirmButton.innerText = idleLabel;
+    setSavedFeedback(type, err.message || "清空失败，请重试。", "error");
+  }
+}
+
+$("confirmClearFavorites").onclick = () => confirmClearSaved("favorite");
+$("confirmClearHistory").onclick = () => confirmClearSaved("history");
 
 $("siteAiForm").onsubmit = async (event) => {
   event.preventDefault();

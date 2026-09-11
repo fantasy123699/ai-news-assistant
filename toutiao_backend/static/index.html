@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>&#x65B0;&#x95FB;&#x7BA1;&#x7406;</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260911-2">
+  <link rel="stylesheet" href="/static/styles.css?v=20260911-3">
 </head>
 <body>
   <aside class="sidebar">
@@ -172,22 +172,52 @@
     </section>
 
     <section id="favoritesView" class="view hidden">
-      <section class="panel">
-        <div class="section-head">
-          <h2>&#x6211;&#x7684;&#x6536;&#x85CF;</h2>
-          <button id="clearFavorites">&#x6E05;&#x7A7A;&#x6536;&#x85CF;</button>
+      <section class="panel saved-panel">
+        <div class="saved-heading">
+          <div>
+            <span class="section-kicker">SAVED READING</span>
+            <h2>&#x6211;&#x7684;&#x6536;&#x85CF;</h2>
+            <p>&#x4FDD;&#x7559;&#x503C;&#x5F97;&#x56DE;&#x770B;&#x7684;&#x5185;&#x5BB9;&#xFF0C;&#x968F;&#x65F6;&#x7EE7;&#x7EED;&#x9605;&#x8BFB;&#x6216;&#x5411; AI &#x8FFD;&#x95EE;&#x3002;</p>
+          </div>
+          <div class="saved-heading-actions">
+            <span id="favoritesCount" class="saved-count" aria-live="polite">&#x6B63;&#x5728;&#x52A0;&#x8F7D;</span>
+            <button id="clearFavorites" class="danger-btn" type="button" aria-expanded="false" aria-controls="favoritesClearConfirm" disabled>&#x6E05;&#x7A7A;&#x5168;&#x90E8;</button>
+          </div>
         </div>
-        <div id="favoritesList"></div>
+        <div id="favoritesClearConfirm" class="clear-confirm hidden" role="group" aria-label="&#x786E;&#x8BA4;&#x6E05;&#x7A7A;&#x6536;&#x85CF;">
+          <p><strong>&#x786E;&#x5B9A;&#x6E05;&#x7A7A;&#x6240;&#x6709;&#x6536;&#x85CF;&#xFF1F;</strong><span>&#x8FD9;&#x4E9B;&#x8BB0;&#x5F55;&#x5C06;&#x65E0;&#x6CD5;&#x6062;&#x590D;&#x3002;</span></p>
+          <div class="clear-confirm-actions">
+            <button id="cancelClearFavorites" type="button" class="secondary-btn">&#x53D6;&#x6D88;</button>
+            <button id="confirmClearFavorites" type="button" class="danger-btn">&#x786E;&#x8BA4;&#x6E05;&#x7A7A;</button>
+          </div>
+        </div>
+        <p id="favoritesFeedback" class="list-status" role="status" aria-live="polite" tabindex="-1"></p>
+        <div id="favoritesList" class="saved-list" aria-busy="false"></div>
       </section>
     </section>
 
     <section id="historyView" class="view hidden">
-      <section class="panel">
-        <div class="section-head">
-          <h2>&#x6D4F;&#x89C8;&#x5386;&#x53F2;</h2>
-          <button id="clearHistory">&#x6E05;&#x7A7A;&#x5386;&#x53F2;</button>
+      <section class="panel saved-panel">
+        <div class="saved-heading">
+          <div>
+            <span class="section-kicker">READING HISTORY</span>
+            <h2>&#x6D4F;&#x89C8;&#x5386;&#x53F2;</h2>
+            <p>&#x5FEB;&#x901F;&#x627E;&#x56DE;&#x6700;&#x8FD1;&#x9605;&#x8BFB;&#x7684;&#x65B0;&#x95FB;&#xFF0C;&#x51CF;&#x5C11;&#x91CD;&#x590D;&#x68C0;&#x7D22;&#x3002;</p>
+          </div>
+          <div class="saved-heading-actions">
+            <span id="historyCount" class="saved-count" aria-live="polite">&#x6B63;&#x5728;&#x52A0;&#x8F7D;</span>
+            <button id="clearHistory" class="danger-btn" type="button" aria-expanded="false" aria-controls="historyClearConfirm" disabled>&#x6E05;&#x7A7A;&#x5168;&#x90E8;</button>
+          </div>
         </div>
-        <div id="historyList"></div>
+        <div id="historyClearConfirm" class="clear-confirm hidden" role="group" aria-label="&#x786E;&#x8BA4;&#x6E05;&#x7A7A;&#x5386;&#x53F2;">
+          <p><strong>&#x786E;&#x5B9A;&#x6E05;&#x7A7A;&#x6240;&#x6709;&#x5386;&#x53F2;&#xFF1F;</strong><span>&#x8FD9;&#x4E9B;&#x8BB0;&#x5F55;&#x5C06;&#x65E0;&#x6CD5;&#x6062;&#x590D;&#x3002;</span></p>
+          <div class="clear-confirm-actions">
+            <button id="cancelClearHistory" type="button" class="secondary-btn">&#x53D6;&#x6D88;</button>
+            <button id="confirmClearHistory" type="button" class="danger-btn">&#x786E;&#x8BA4;&#x6E05;&#x7A7A;</button>
+          </div>
+        </div>
+        <p id="historyFeedback" class="list-status" role="status" aria-live="polite" tabindex="-1"></p>
+        <div id="historyList" class="saved-list" aria-busy="false"></div>
       </section>
     </section>
   </main>
@@ -205,6 +235,6 @@
     </section>
   </div>
 
-  <script src="/static/app.js?v=20260911-2"></script>
+  <script src="/static/app.js?v=20260911-3"></script>
 </body>
 </html>
