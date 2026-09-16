@@ -15,11 +15,13 @@ class PromptVersionTests(unittest.TestCase):
     def test_site_chat_prompt_is_versioned_and_contains_inputs(self):
         messages = build_site_news_chat_messages("有什么科技新闻", "[来源1]\n标题：示例")
 
-        self.assertEqual(SITE_NEWS_CHAT_PROMPT_VERSION, "site-news-chat-v1")
+        self.assertEqual(SITE_NEWS_CHAT_PROMPT_VERSION, "site-news-chat-v2")
         self.assertEqual([message["role"] for message in messages], ["system", "user"])
         self.assertIn("有什么科技新闻", messages[1]["content"])
         self.assertIn("[来源1]", messages[1]["content"])
         self.assertIn("每个事实或推荐都要使用 [来源N]", messages[1]["content"])
+        self.assertIn("不要输出分析、推理或思考过程", messages[1]["content"])
+        self.assertIn("<final>", messages[1]["content"])
 
 
 class CitationGroundingTests(unittest.TestCase):

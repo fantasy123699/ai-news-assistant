@@ -103,7 +103,10 @@ async def site_news_chat(
         data.message,
         build_news_context(rows),
     )
-    answer = await chat_with_local_llm(messages)
+    raw_answer = await chat_with_local_llm(messages)
+    answer = extract_final_answer(raw_answer)
+    if not answer:
+        raise HTTPException(status_code=502, detail="LLM service returned no final answer")
 
     await ai_crud.save_ai_chat(db, current_user.id, data.message, answer)
 
@@ -168,16 +171,20 @@ async def chat_about_news(
     prompt = f"""
 用户正在阅读下面这篇新闻，并提出了一个问题。
 请只根据新闻内容回答。如果新闻内容无法回答，请明确说明“这篇新闻中没有提到”。
+不要输出分析、推理或思考过程。只把最终回答放在 <final> 和 </final> 之间，标签外不要输出任何内容。
 
 {build_news_text(news)}
 
 用户问题：{data.question}
 """
 
-    answer = await chat_with_local_llm([
+    raw_answer = await chat_with_local_llm([
         {"role": "system", "content": "你是一个严谨的中文新闻问答助手。"},
         {"role": "user", "content": prompt},
     ])
+    answer = extract_final_answer(raw_answer)
+    if not answer:
+        raise HTTPException(status_code=502, detail="LLM service returned no final answer")
 
     await ai_crud.save_ai_chat(db, current_user.id, data.question, answer)
 

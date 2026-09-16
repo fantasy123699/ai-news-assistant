@@ -58,6 +58,20 @@ class LocalLlmClientTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result, "只展示这段摘要")
 
+    def test_extract_final_answer_uses_final_block(self):
+        result = local_llm.extract_final_answer(
+            "我需要先分析用户问题。<final>只展示可核验的回答。[来源1]</final>"
+        )
+
+        self.assertEqual(result, "只展示可核验的回答。[来源1]")
+
+    def test_extract_final_answer_uses_chinese_final_section(self):
+        result = local_llm.extract_final_answer(
+            "我先分析检索结果和用户意图。\n以下是基于新闻库的信息来推荐：财经新闻摘要。[来源1]"
+        )
+
+        self.assertEqual(result, "财经新闻摘要。[来源1]")
+
     def test_extract_final_answer_rejects_unclosed_reasoning(self):
         result = local_llm.extract_final_answer("<think>尚未生成最终答案")
 

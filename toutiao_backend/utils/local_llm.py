@@ -26,18 +26,31 @@ REASONING_OPEN_PATTERN = re.compile(
     r"<(?:think|analysis|reasoning)\b[^>]*>",
     flags=re.IGNORECASE,
 )
+FINAL_BLOCK_PATTERN = re.compile(
+    r"<final\b[^>]*>(.*?)</final>",
+    flags=re.IGNORECASE | re.DOTALL,
+)
 FINAL_ANSWER_PATTERN = re.compile(
     r"(?:^|\n)\s*(?:最终答案|final answer)\s*[:：]\s*",
     flags=re.IGNORECASE,
+)
+CHINESE_FINAL_SECTION_PATTERN = re.compile(
+    r"(?:^|\n)\s*(?:回答如下|结论如下|以下(?:是|为)[^\n：:]{0,30}(?:回答|总结|推荐|结果))\s*[:：]\s*",
 )
 
 
 def extract_final_answer(content: str) -> str:
     """Remove tagged model reasoning while preserving the user-facing answer."""
+    final_blocks = FINAL_BLOCK_PATTERN.findall(content)
+    if final_blocks:
+        return final_blocks[-1].strip()
+
     answer = REASONING_BLOCK_PATTERN.sub("", content).strip()
     markers = list(FINAL_ANSWER_PATTERN.finditer(answer))
+    markers.extend(CHINESE_FINAL_SECTION_PATTERN.finditer(answer))
     if markers:
-        answer = answer[markers[-1].end():].strip()
+        last_marker = max(markers, key=lambda marker: marker.start())
+        answer = answer[last_marker.end():].strip()
     if REASONING_OPEN_PATTERN.search(answer):
         return ""
     return answer

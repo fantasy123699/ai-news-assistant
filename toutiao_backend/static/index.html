@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>&#x65B0;&#x95FB;&#x7BA1;&#x7406;</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260911-3">
+  <link rel="stylesheet" href="/static/styles.css?v=20260916-1">
 </head>
 <body>
   <aside class="sidebar">
@@ -223,18 +223,27 @@
   </main>
 
   <div id="siteAi" class="site-ai">
-    <button id="siteAiTab" class="site-ai-tab" type="button" aria-expanded="false" aria-controls="siteAiPanel">AI</button>
-    <section id="siteAiPanel" class="site-ai-panel" aria-label="AI &#x65B0;&#x95FB;&#x52A9;&#x624B;">
-      <h2>AI &#x65B0;&#x95FB;&#x52A9;&#x624B;</h2>
-      <p class="muted">&#x8BD5;&#x8BD5;&#x8F93;&#x5165;&#xFF1A;&#x6211;&#x60F3;&#x77E5;&#x9053;&#x6700;&#x8FD1;&#x7684;&#x8D22;&#x7ECF;&#x65B0;&#x95FB;</p>
-      <div id="siteAiMessages" class="site-ai-messages"></div>
-      <form id="siteAiForm" class="site-ai-form">
-        <textarea id="siteAiInput" placeholder="&#x8F93;&#x5165;&#x4F60;&#x60F3;&#x4E86;&#x89E3;&#x7684;&#x65B0;&#x95FB;"></textarea>
-        <button type="submit">&#x53D1;&#x9001;</button>
+    <button id="siteAiTab" class="site-ai-tab" type="button" aria-expanded="false" aria-controls="siteAiPanel" aria-label="&#x6253;&#x5F00; AI &#x65B0;&#x95FB;&#x52A9;&#x624B;">AI</button>
+    <section id="siteAiPanel" class="site-ai-panel" aria-label="AI &#x65B0;&#x95FB;&#x52A9;&#x624B;" inert>
+      <header class="site-ai-heading">
+        <div>
+          <span class="section-kicker">GROUNDED ANSWERS</span>
+          <h2>AI &#x65B0;&#x95FB;&#x52A9;&#x624B;</h2>
+        </div>
+        <span class="ai-access ready">&#x7AD9;&#x5185;&#x6765;&#x6E90;</span>
+        <p>&#x57FA;&#x4E8E;&#x7AD9;&#x5185;&#x65B0;&#x95FB;&#x56DE;&#x7B54;&#xFF0C;&#x5E76;&#x5217;&#x51FA;&#x53EF;&#x6838;&#x5BF9;&#x7684;&#x5F15;&#x7528;&#x6765;&#x6E90;&#x3002;</p>
+      </header>
+      <div id="siteAiMessages" class="site-ai-messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
+      <form id="siteAiForm" class="site-ai-form" novalidate>
+        <label for="siteAiInput">&#x60F3;&#x4E86;&#x89E3;&#x4EC0;&#x4E48;&#x65B0;&#x95FB;&#xFF1F;</label>
+        <textarea id="siteAiInput" maxlength="500" aria-describedby="siteAiHint siteAiError" placeholder="&#x4F8B;&#x5982;&#xFF1A;&#x6700;&#x8FD1;&#x6709;&#x54EA;&#x4E9B;&#x8D22;&#x7ECF;&#x65B0;&#x95FB;&#x503C;&#x5F97;&#x5173;&#x6CE8;&#xFF1F;"></textarea>
+        <p id="siteAiHint" class="site-ai-hint">&#x56DE;&#x7B54;&#x53EA;&#x4F7F;&#x7528;&#x7AD9;&#x5185;&#x65B0;&#x95FB;&#xFF1B;&#x70B9;&#x51FB;&#x5F15;&#x7528;&#x53EF;&#x6253;&#x5F00;&#x539F;&#x6587;&#x3002;</p>
+        <p id="siteAiError" class="form-error" role="alert"></p>
+        <button id="siteAiSubmit" type="submit">&#x53D1;&#x9001;&#x95EE;&#x9898;</button>
       </form>
     </section>
   </div>
 
-  <script src="/static/app.js?v=20260911-3"></script>
+  <script src="/static/app.js?v=20260916-1"></script>
 </body>
 </html>

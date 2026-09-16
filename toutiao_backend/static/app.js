@@ -18,7 +18,7 @@ const text = {
   profileWorking: "\u6b63\u5728\u4fdd\u5b58...",
   noProfileChanges: "\u8d44\u6599\u6ca1\u6709\u53d8\u66f4\uff0c\u65e0\u9700\u4fdd\u5b58\u3002",
   sessionExpired: "\u767b\u5f55\u72b6\u6001\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u3002",
-  aiWorking: "AI \u6b63\u5728\u601d\u8003...",
+  aiWorking: "\u6b63\u5728\u68c0\u7d22\u7ad9\u5185\u65b0\u95fb\u5e76\u7ec4\u7ec7\u56de\u7b54...",
   aiSummary: "\u751f\u6210 AI \u6458\u8981",
   aiAsk: "\u53d1\u9001\u95ee\u9898",
   aiQuestionPlaceholder: "\u4f8b\u5982\uff1a\u8fd9\u7bc7\u65b0\u95fb\u7684\u6838\u5fc3\u7ed3\u8bba\u662f\u4ec0\u4e48\uff1f",
@@ -289,19 +289,64 @@ function renderLoginStatus() {
   syncDetailAiAccess();
 }
 
-function appendSiteAiMessage(role, content, references = []) {
-  const box = $("siteAiMessages");
-  const refs = references.length
-    ? `<div class="ai-refs">${references.map(item => `
-        <div class="ai-ref" data-id="${item.id}">
-          <strong>${item.title}</strong>
-          <span>${item.category_name || text.unknownCategory} · ${item.views || 0} ${text.views}</span>
-        </div>
-      `).join("")}</div>`
-    : "";
+function renderSiteAiReferences(references, showEmpty = false) {
+  if (!references.length) {
+    return showEmpty
+      ? `<p class="ai-sources-empty">\u672c\u6b21\u672a\u68c0\u7d22\u5230\u53ef\u6253\u5f00\u7684\u7ad9\u5185\u6765\u6e90\u3002</p>`
+      : "";
+  }
 
-  box.innerHTML += `<div class="ai-msg ${role}">${content}${refs}</div>`;
+  return `
+    <section class="ai-sources" aria-label="\u5f15\u7528\u6765\u6e90">
+      <div class="ai-sources-heading">
+        <strong>\u5f15\u7528\u6765\u6e90</strong>
+        <span>${references.length} \u6761</span>
+      </div>
+      <div class="ai-refs">${references.map(item => `
+        <button class="ai-ref" type="button" data-id="${escapeHtml(item.id)}" aria-label="\u6253\u5f00\u5f15\u7528\u65b0\u95fb\uff1a${escapeHtml(item.title)}">
+          <span class="ai-citation">${escapeHtml(item.citation_id || "\u6765\u6e90")}</span>
+          <strong>${escapeHtml(item.title)}</strong>
+          <span class="ai-ref-meta">${escapeHtml(item.category_name || text.unknownCategory)} · ${Number(item.views) || 0} ${text.views}</span>
+        </button>
+      `).join("")}</div>
+    </section>`;
+}
+
+function renderSiteAiMessage(message, role, content, references = [], tone = "", label = "") {
+  const heading = label || (role === "user" ? "\u4f60\u7684\u95ee\u9898" : "AI \u6700\u7ec8\u56de\u7b54");
+  message.className = `ai-msg ${role}${tone ? ` ${tone}` : ""}`;
+  message.innerHTML = `
+    <span class="ai-msg-label">${escapeHtml(heading)}</span>
+    <p>${escapeHtml(content)}</p>
+    ${renderSiteAiReferences(references, role === "assistant" && tone === "answer")}`;
+}
+
+function appendSiteAiMessage(role, content, references = [], tone = "", label = "") {
+  const box = $("siteAiMessages");
+  const message = document.createElement(role === "assistant" ? "article" : "div");
+  renderSiteAiMessage(message, role, content, references, tone, label);
+  box.append(message);
   box.scrollTop = box.scrollHeight;
+  return message;
+}
+
+function setSiteAiBusy(busy) {
+  const form = $("siteAiForm");
+  const input = $("siteAiInput");
+  const submit = $("siteAiSubmit");
+  form.setAttribute("aria-busy", String(busy));
+  input.disabled = busy;
+  submit.disabled = busy;
+  submit.innerText = busy ? "\u6b63\u5728\u67e5\u627e\u6765\u6e90..." : "\u53d1\u9001\u95ee\u9898";
+}
+
+function setSiteAiOpen(open, returnFocus = false) {
+  $("siteAi").classList.toggle("open", open);
+  $("siteAiPanel").inert = !open;
+  $("siteAiTab").setAttribute("aria-expanded", String(open));
+  $("siteAiTab").setAttribute("aria-label", open ? "\u5173\u95ed AI \u65b0\u95fb\u52a9\u624b" : "\u6253\u5f00 AI \u65b0\u95fb\u52a9\u624b");
+  if (open) $("siteAiInput").focus();
+  if (!open && returnFocus) $("siteAiTab").focus();
 }
 
 async function loadCurrentUser() {
@@ -619,6 +664,7 @@ document.addEventListener("click", async (event) => {
 
   const aiRef = event.target.closest(".ai-ref");
   if (aiRef) {
+    setSiteAiOpen(false, true);
     showView("news");
     await loadDetail(aiRef.dataset.id);
   }
@@ -778,6 +824,10 @@ $("list").addEventListener("keydown", async (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  if (event.target.id === "siteAiInput") {
+    event.target.removeAttribute("aria-invalid");
+    $("siteAiError").innerText = "";
+  }
   if (event.target.id === "aiQuestion") {
     event.target.removeAttribute("aria-invalid");
     $("aiQuestionError").innerText = "";
@@ -980,55 +1030,54 @@ $("confirmClearHistory").onclick = () => confirmClearSaved("history");
 $("siteAiForm").onsubmit = async (event) => {
   event.preventDefault();
   if (!state.token) {
-    alert(text.loginFirst);
+    setSiteAiOpen(false);
     showView("profile");
+    state.authFeedback = "\u767b\u5f55\u540e\u5373\u53ef\u4f7f\u7528\u7ad9\u5185 AI \u65b0\u95fb\u52a9\u624b\u3002";
+    renderUserInfo();
     return;
   }
 
   const input = $("siteAiInput");
   const message = input.value.trim();
-  if (!message) return;
+  if (!message) {
+    input.setAttribute("aria-invalid", "true");
+    $("siteAiError").innerText = "\u8bf7\u5148\u8f93\u5165\u4e00\u4e2a\u65b0\u95fb\u95ee\u9898\u3002";
+    input.focus();
+    return;
+  }
 
   appendSiteAiMessage("user", message);
   input.value = "";
-  appendSiteAiMessage("assistant", text.aiWorking);
+  $("siteAiError").innerText = "";
+  setSiteAiBusy(true);
+  const pendingMessage = appendSiteAiMessage("assistant", text.aiWorking, [], "working", "\u6b63\u5728\u68c0\u7d22");
 
   try {
     const data = await requestJson("/ai/chat", "POST", { message, limit: 6 });
-    const messages = document.querySelectorAll(".site-ai-messages .assistant");
-    const last = messages[messages.length - 1];
-    last.innerHTML = `${data.answer || ""}${(data.references || []).length ? `<div class="ai-refs">${data.references.map(item => `
-      <div class="ai-ref" data-id="${item.id}">
-        <strong>${item.title}</strong>
-        <span>${item.category_name || text.unknownCategory} · ${item.views || 0} ${text.views}</span>
-      </div>
-    `).join("")}</div>` : ""}`;
+    renderSiteAiMessage(pendingMessage, "assistant", data.answer || "\u6682\u65e0\u53ef\u5c55\u793a\u7684\u56de\u7b54\u3002", data.references || [], "answer");
   } catch (err) {
-    const messages = document.querySelectorAll(".site-ai-messages .assistant");
-    const last = messages[messages.length - 1];
-    last.innerText = err.message || "\u8bf7\u6c42\u5931\u8d25";
+    renderSiteAiMessage(pendingMessage, "assistant", text.aiRequestFailed, [], "error", "\u8bf7\u6c42\u672a\u5b8c\u6210");
+    input.value = message;
+  } finally {
+    setSiteAiBusy(false);
+    input.focus();
   }
 };
 
 $("siteAiTab").onclick = () => {
-  const drawer = $("siteAi");
-  const isOpen = drawer.classList.toggle("open");
-  $("siteAiTab").setAttribute("aria-expanded", String(isOpen));
-  if (isOpen) $("siteAiInput").focus();
+  setSiteAiOpen(!$("siteAi").classList.contains("open"));
 };
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape" || !$("siteAi").classList.contains("open")) return;
-  $("siteAi").classList.remove("open");
-  $("siteAiTab").setAttribute("aria-expanded", "false");
-  $("siteAiTab").focus();
+  setSiteAiOpen(false, true);
 });
 
 async function init() {
   try {
     await loadCurrentUser();
     renderUserInfo();
-    appendSiteAiMessage("assistant", text.aiSiteWelcome);
+    appendSiteAiMessage("assistant", text.aiSiteWelcome, [], "welcome", "\u4f7f\u7528\u8bf4\u660e");
     await loadCategories();
     await loadList();
   } catch (err) {

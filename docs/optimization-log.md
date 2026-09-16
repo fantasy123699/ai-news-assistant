@@ -287,3 +287,24 @@
 
 - Pagination or date grouping can wait until saved histories regularly exceed the current 50-item portfolio scope.
 - The overall project remains conditional for broad public exposure until session hardening, backup/restore, HTTPS, and operational monitoring are verified.
+
+## 2026-09-16 - Site-wide AI answer and citation polish
+
+### Scope
+
+- Preserved the existing assistant drawer, `/ai/chat` contract, retrieval logic, and dependency-free frontend.
+- Prevented site and article chat routes from saving or returning model reasoning when a final answer can be extracted.
+- Versioned the grounded-answer prompt and added regression coverage for final blocks and the observed Chinese final-section output.
+- Replaced raw answer/reference HTML injection with escaped message rendering and accessible native citation buttons.
+- Separated final answers from cited sources and added grounding, validation, loading, failure recovery, focus, and closed-panel semantics.
+- Documented the scoped UX, accessibility, security, and readiness review in `docs/ui-audit/site-ai/site-ai.md`.
+
+### Verification
+
+- Exercised drawer open/close, empty input, an authenticated grounded question, final-only output, citation rendering, and citation-to-article navigation in the Codex in-app browser.
+- Confirmed all 32 unit tests, JavaScript syntax, Python compilation, Compose rebuild, three-container health, `/ai/chat` HTTP 200, and clean application request logs.
+
+### Follow-up
+
+- Streaming answers and production telemetry remain separate modules.
+- The overall project remains conditional for broad public exposure until session hardening, rate limiting, HTTPS, backup/restore, and monitoring are verified.
