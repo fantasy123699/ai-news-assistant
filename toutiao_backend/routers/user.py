@@ -1,14 +1,17 @@
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.db_cond import get_db
 from crud import user as user_crud
 from schemas.user import PasswordUpdate, UserLogin, UserRegister, UserUpdate
+from utils.login_rate_limit import login_rate_limiter
 
 
 router = APIRouter(prefix="/user", tags=["User"])
+logger = logging.getLogger("uvicorn.error")
 
 
 def get_access_token(authorization: Optional[str]) -> str:
@@ -74,12 +77,36 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login")
-async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(
+    data: UserLogin,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    client_id = request.client.host if request.client else "unknown"
+    retry_after = await login_rate_limiter.retry_after(data.username, client_id)
+    if retry_after:
+        logger.info("login_rate_limited stage=precheck")
+        raise HTTPException(
+            status_code=429,
+            detail="Too many login attempts. Please try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     user = await user_crud.get_user_by_username(db, data.username)
 
     if not user or not user_crud.verify_password(data.password, user.password):
+        retry_after = await login_rate_limiter.record_failure(data.username, client_id)
+        if retry_after:
+            logger.info("login_rate_limited stage=threshold")
+            raise HTTPException(
+                status_code=429,
+                detail="Too many login attempts. Please try again later.",
+                headers={"Retry-After": str(retry_after)},
+            )
+        logger.info("login_failed")
         raise HTTPException(status_code=401, detail="Wrong username or password")
 
+    await login_rate_limiter.reset(data.username, client_id)
     token, expires_at = await user_crud.create_token(db, user.id)
 
     return {
@@ -164,10 +191,10 @@ async def update_password(
     if not user_crud.verify_password(data.old_password, current_user.password):
         raise HTTPException(status_code=400, detail="Old password is wrong")
 
-    user = await user_crud.update_user(
+    user = await user_crud.update_password_and_revoke_sessions(
         db,
         current_user.id,
-        {"password": user_crud.hash_password(data.new_password)},
+        user_crud.hash_password(data.new_password),
     )
     return user_crud.user_to_dict(user)
 

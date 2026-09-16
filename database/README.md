@@ -30,6 +30,14 @@ If the bundled Chinese demo content was imported with mojibake, run the idempote
 mysql -u root -p < database/migrations/002_repair_seed_utf8.sql
 ```
 
+Before deploying the token-hashing code to an existing database, widen the token column and hash existing session values:
+
+```bash
+mysql -u root -p < database/migrations/003_hash_user_tokens.sql
+```
+
+Run this migration before the new application process starts. Existing browser sessions remain usable because the migration hashes the stored token with the same SHA-256 function used by the application.
+
 New accounts receive the `user` role. Promote an account only through a trusted database administration session when it needs access to user-management and news-writing endpoints.
 
 ```sql

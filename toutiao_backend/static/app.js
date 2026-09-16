@@ -245,6 +245,9 @@ function setFormBusy(form, busy, pendingLabel) {
 
 function friendlyAuthError(error, fallback) {
   const message = String(error?.message || "");
+  if (error?.status === 429 || message.includes("Too many login attempts")) {
+    return "\u767b\u5f55\u5c1d\u8bd5\u6b21\u6570\u8fc7\u591a\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002";
+  }
   if (message.includes("Wrong username or password")) return "\u7528\u6237\u540d\u6216\u5bc6\u7801\u4e0d\u6b63\u786e\uff0c\u8bf7\u91cd\u65b0\u8f93\u5165\u3002";
   if (message.includes("Username already exists")) return "\u8be5\u7528\u6237\u540d\u5df2\u88ab\u4f7f\u7528\uff0c\u8bf7\u66f4\u6362\u4e00\u4e2a\u3002";
   if (message.includes("Phone already exists")) return "\u8be5\u624b\u673a\u53f7\u5df2\u7ed1\u5b9a\u5176\u4ed6\u8d26\u53f7\u3002";

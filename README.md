@@ -17,8 +17,9 @@
 - **可靠的异步模型调用**：基于 `httpx` 支持 Ollama、LM Studio、vLLM 等 OpenAI 兼容服务，并实现真实流式回答、超时、有限重试和安全错误映射。
 - **隐私安全的模型遥测**：记录调用结果、失败类型、总耗时和流式首字时间，不记录 Prompt、回答或用户身份；管理员可查看最近 200 次聚合结果。
 - **只展示最终答案**：摘要和问答会隔离模型思考通道，并在保存或展示前过滤 `think`、`analysis`、`reasoning` 推理内容。
+- **会话与登录保护**：数据库只保存访问令牌摘要，改密撤销全部会话，并通过 Redis 限制同一账号与客户端来源的连续登录失败。
 - **完整应用能力**：包含登录与角色边界、新闻管理、Redis 缓存、收藏、浏览历史、AI 摘要和文章问答。
-- **工程化交付**：Python 3.12、非 root 容器、MySQL/Redis 健康检查、GitHub Actions 和 40 项自动化测试。
+- **工程化交付**：Python 3.12、非 root 容器、MySQL/Redis 健康检查、GitHub Actions 和 50 项自动化测试。
 
 ## 核心流程
 
@@ -105,7 +106,7 @@ py -3 -m venv .venv
 
 当前检查结果：
 
-- 40 项自动化测试通过。
+- 50 项自动化测试通过。
 - 引用覆盖离线样例 4/4 通过。
 - CI 同时检查 Compose 配置、Python 编译、OpenAPI 生成和依赖完整性。
 
@@ -139,13 +140,15 @@ ai-news-assistant/
 
 - 当前 RAG 使用适合小型新闻数据集的可解释词法检索；在积累真实匿名查询并完成基线评测前，不盲目引入向量数据库。
 - Compose 面向本地复现，公开部署仍需要生产密钥、HTTPS、备份、迁移和回滚验证。
-- 后续优先完善 MySQL 集成测试、会话安全和模型调用遥测，不将尚未实现的 Agent 能力写入项目声明。
+- 后续优先完善高成本 AI 接口限流、MySQL 集成测试与备份恢复演练，不将尚未实现的 Agent 能力写入项目声明。
 
 ## 进一步阅读
 
 - [模型客户端与失败处理](docs/llm-client.md)
 - [模型调用遥测](docs/llm-telemetry.md)
 - [模型遥测模块就绪审查](docs/telemetry-readiness-audit.md)
+- [登录限流与会话安全](docs/auth-session-security.md)
+- [登录与会话模块就绪审查](docs/auth-security-readiness-audit.md)
 - [RAG 检索与 Hit@K 评测](docs/rag-retrieval.md)
 - [Prompt 版本与引用覆盖评测](docs/prompt-evaluation.md)
 - [持续集成说明](docs/continuous-integration.md)

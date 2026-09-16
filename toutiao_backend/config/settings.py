@@ -54,6 +54,10 @@ REDIS_PORT = get_int_setting("REDIS_PORT", 6379)
 REDIS_DB = get_int_setting("REDIS_DB", 0)
 REDIS_DECODE_RESPONSES = get_bool_setting("REDIS_DECODE_RESPONSES", True)
 
+AUTH_LOGIN_MAX_FAILURES = get_int_setting("AUTH_LOGIN_MAX_FAILURES", 5)
+AUTH_LOGIN_WINDOW_SECONDS = get_int_setting("AUTH_LOGIN_WINDOW_SECONDS", 300)
+AUTH_LOGIN_LOCKOUT_SECONDS = get_int_setting("AUTH_LOGIN_LOCKOUT_SECONDS", 900)
+
 LOCAL_LLM_PROVIDER = os.getenv("LOCAL_LLM_PROVIDER", "ollama")
 LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "deepseek-r1:1.5b")
 LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL", "http://127.0.0.1:11435")
@@ -70,3 +74,9 @@ if LOCAL_LLM_MAX_RETRIES < 0:
     raise RuntimeError("Setting LOCAL_LLM_MAX_RETRIES cannot be negative.")
 if LOCAL_LLM_RETRY_BACKOFF_SECONDS < 0:
     raise RuntimeError("Setting LOCAL_LLM_RETRY_BACKOFF_SECONDS cannot be negative.")
+if AUTH_LOGIN_MAX_FAILURES < 1:
+    raise RuntimeError("Setting AUTH_LOGIN_MAX_FAILURES must be greater than zero.")
+if AUTH_LOGIN_WINDOW_SECONDS < 1:
+    raise RuntimeError("Setting AUTH_LOGIN_WINDOW_SECONDS must be greater than zero.")
+if AUTH_LOGIN_LOCKOUT_SECONDS < 1:
+    raise RuntimeError("Setting AUTH_LOGIN_LOCKOUT_SECONDS must be greater than zero.")

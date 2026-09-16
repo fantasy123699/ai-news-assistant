@@ -8,6 +8,9 @@ services:
       DATABASE_URL: mysql+aiomysql://news_app:${MYSQL_PASSWORD:-news-app-dev}@db:3306/news_app?charset=utf8mb4
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      AUTH_LOGIN_MAX_FAILURES: ${AUTH_LOGIN_MAX_FAILURES:-5}
+      AUTH_LOGIN_WINDOW_SECONDS: ${AUTH_LOGIN_WINDOW_SECONDS:-300}
+      AUTH_LOGIN_LOCKOUT_SECONDS: ${AUTH_LOGIN_LOCKOUT_SECONDS:-900}
       LOCAL_LLM_PROVIDER: ${LOCAL_LLM_PROVIDER:-ollama}
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-deepseek-r1:1.5b}
       LOCAL_LLM_BASE_URL: ${CONTAINER_LLM_BASE_URL:-http://host.docker.internal:11435}

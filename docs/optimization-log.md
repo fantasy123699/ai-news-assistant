@@ -350,3 +350,23 @@
 
 - A public deployment should export logs and metrics to durable storage, aggregate across instances, and attach owned alerts and runbooks.
 - Rate limiting, session hardening, HTTPS, backup/restore, and capacity evidence remain separate release-readiness work.
+
+## 2026-09-16 - Login rate limiting and session hardening
+
+### Scope
+
+- Added Redis-backed account-and-client failure counting with a bounded window, temporary lockout, `Retry-After`, and privacy-safe security logs.
+- Added a clear inline browser message for HTTP 429 without changing the existing authentication layout.
+- Replaced database plaintext session tokens with SHA-256 digests while continuing to return only the random raw token to the browser.
+- Added an ordered migration that preserves existing sessions by hashing stored legacy tokens in place.
+- Made password changes revoke every session for that user in the same database transaction.
+
+### Verification
+
+- Unit tests cover threshold locking, successful reset, Redis degradation, raw-token hashing, digest lookup/logout, transactional password revocation, route-level 429 behavior, and successful login reset.
+- The existing authentication, AI, retrieval, health, evaluation, compilation, OpenAPI, dependency, Compose, container-health, browser, and runtime-log checks are rerun before commit.
+
+### Follow-up
+
+- A public deployment should replace `localStorage` tokens with secure HttpOnly cookies and add CSRF protection.
+- Production Redis availability, authentication attack alerts, HTTPS, password recovery, and dedicated security testing remain release work.

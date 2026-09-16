@@ -1,6 +1,7 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from uuid import uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +30,10 @@ def verify_password(password: str, saved_password: str) -> bool:
         except ValueError:
             return False
     return False
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int):
@@ -82,7 +87,8 @@ async def create_user(db: AsyncSession, data):
 
 
 async def create_token(db: AsyncSession, user_id: int):
-    token = uuid4().hex
+    token = secrets.token_urlsafe(32)
+    token_hash = hash_token(token)
     expires_at = datetime.now() + timedelta(days=7)
 
     await db.execute(
@@ -92,7 +98,7 @@ async def create_token(db: AsyncSession, user_id: int):
             VALUES (:user_id, :token, :expires_at)
             """
         ),
-        {"user_id": user_id, "token": token, "expires_at": expires_at},
+        {"user_id": user_id, "token": token_hash, "expires_at": expires_at},
     )
     await db.commit()
 
@@ -109,14 +115,34 @@ async def get_user_by_token(db: AsyncSession, token: str):
             WHERE t.token = :token AND t.expires_at > NOW()
             """
         ),
-        {"token": token},
+        {"token": hash_token(token)},
     )
     return result.fetchone()
 
 
 async def delete_token(db: AsyncSession, token: str):
-    await db.execute(text("DELETE FROM user_token WHERE token = :token"), {"token": token})
+    await db.execute(
+        text("DELETE FROM user_token WHERE token = :token"),
+        {"token": hash_token(token)},
+    )
     await db.commit()
+
+
+async def update_password_and_revoke_sessions(
+    db: AsyncSession,
+    user_id: int,
+    password_hash: str,
+):
+    await db.execute(
+        text("UPDATE `user` SET password = :password WHERE id = :user_id"),
+        {"password": password_hash, "user_id": user_id},
+    )
+    await db.execute(
+        text("DELETE FROM user_token WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    await db.commit()
+    return await get_user_by_id(db, user_id)
 
 
 async def get_user_list(db: AsyncSession, keyword: Optional[str], page: int, page_size: int):
