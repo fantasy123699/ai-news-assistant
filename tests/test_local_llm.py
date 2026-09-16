@@ -38,6 +38,7 @@ class LocalLlmClientTests(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertEqual(result, "answer")
+        self.assertTrue(client.post.await_args.kwargs["json"]["think"])
 
     def test_extract_final_answer_removes_tagged_reasoning(self):
         result = local_llm.extract_final_answer(
@@ -76,6 +77,38 @@ class LocalLlmClientTests(unittest.IsolatedAsyncioTestCase):
         result = local_llm.extract_final_answer("<think>尚未生成最终答案")
 
         self.assertEqual(result, "")
+
+    def test_stream_filter_hides_reasoning_and_handles_split_final_tag(self):
+        stream_filter = local_llm.FinalAnswerStreamFilter()
+
+        chunks = ["内部推理。<fi", "nal>最终", "回答。[来源1]</fi", "nal>"]
+        result = "".join(stream_filter.feed(chunk) for chunk in chunks)
+        result += stream_filter.finish()
+
+        self.assertEqual(result, "最终回答。[来源1]")
+        self.assertNotIn("内部推理", result)
+
+    def test_stream_filter_starts_after_chinese_final_marker(self):
+        stream_filter = local_llm.FinalAnswerStreamFilter()
+
+        chunks = ["先分析检索结果。\n以下是基于新闻库的信息来推", "荐：第一条", "新闻。[来源1]"]
+        result = "".join(stream_filter.feed(chunk) for chunk in chunks)
+        result += stream_filter.finish()
+
+        self.assertEqual(result, "第一条新闻。[来源1]")
+
+    def test_stream_filter_falls_back_to_plain_answer_on_finish(self):
+        stream_filter = local_llm.FinalAnswerStreamFilter()
+
+        self.assertEqual(stream_filter.feed("普通回答"), "")
+        self.assertEqual(stream_filter.finish(), "普通回答")
+
+    def test_stream_filter_uses_provider_final_channel(self):
+        stream_filter = local_llm.FinalAnswerStreamFilter()
+
+        self.assertEqual(stream_filter.feed("不会展示的推理"), "")
+        self.assertEqual(stream_filter.feed_final("逐段展示的最终回答"), "逐段展示的最终回答")
+        self.assertEqual(stream_filter.finish(), "")
 
     async def test_openai_compatible_provider_uses_chat_completions(self):
         client = self.make_client(

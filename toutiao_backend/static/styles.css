@@ -298,6 +298,8 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .ai-msg.assistant.answer { border-color: oklch(0.82 0.06 232); background: var(--accent-soft); }
 .ai-msg.assistant.answer .ai-msg-label { color: var(--accent-strong); }
 .ai-msg.assistant.working { border-style: dashed; color: var(--muted); }
+.ai-msg.assistant.streaming { border-color: oklch(0.8 0.07 232); background: var(--accent-soft); }
+.ai-msg.assistant.streaming .ai-msg-label { color: var(--accent-strong); }
 .ai-msg.assistant.error { border-color: oklch(0.79 0.08 25); background: oklch(0.97 0.025 25); color: var(--danger); }
 .ai-sources { margin-top: 12px; padding-top: 11px; border-top: 1px solid oklch(0.84 0.045 232); }
 .ai-sources-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 7px; color: var(--accent-strong); font-size: 12px; }

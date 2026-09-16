@@ -92,6 +92,43 @@ function getImage(url) {
   return url || "https://picsum.photos/seed/news/300/200";
 }
 
+async function requestJsonStream(url, data, onEvent) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headers({ "Content-Type": "application/json" }),
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const error = new Error(formatError(await response.text()));
+    error.status = response.status;
+    throw error;
+  }
+  if (!response.body) throw new Error("Streaming response is not supported by this browser");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const processLine = async (line) => {
+    if (!line.trim()) return;
+    await onEvent(JSON.parse(line));
+  };
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) await processLine(line);
+      if (done) break;
+    }
+    await processLine(buffer);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -328,6 +365,19 @@ function appendSiteAiMessage(role, content, references = [], tone = "", label = 
   box.append(message);
   box.scrollTop = box.scrollHeight;
   return message;
+}
+
+function updateSiteAiStreamingMessage(message, content) {
+  const box = $("siteAiMessages");
+  const isNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 72;
+  message.className = "ai-msg assistant streaming";
+  message.querySelector(".ai-msg-label").innerText = "AI \u6b63\u5728\u751f\u6210";
+  message.querySelector("p").innerText = content;
+  if (isNearBottom) box.scrollTop = box.scrollHeight;
+}
+
+function setSiteAiStatus(message) {
+  $("siteAiStatus").innerText = message;
 }
 
 function setSiteAiBusy(busy) {
@@ -1050,13 +1100,36 @@ $("siteAiForm").onsubmit = async (event) => {
   input.value = "";
   $("siteAiError").innerText = "";
   setSiteAiBusy(true);
+  setSiteAiStatus("\u6b63\u5728\u68c0\u7d22\u7ad9\u5185\u65b0\u95fb\u3002");
   const pendingMessage = appendSiteAiMessage("assistant", text.aiWorking, [], "working", "\u6b63\u5728\u68c0\u7d22");
 
   try {
-    const data = await requestJson("/ai/chat", "POST", { message, limit: 6 });
-    renderSiteAiMessage(pendingMessage, "assistant", data.answer || "\u6682\u65e0\u53ef\u5c55\u793a\u7684\u56de\u7b54\u3002", data.references || [], "answer");
+    let answer = "";
+    let completed = false;
+    await requestJsonStream("/ai/chat/stream", { message, limit: 6 }, async (streamEvent) => {
+      if (streamEvent.type === "delta") {
+        answer += streamEvent.content || "";
+        updateSiteAiStreamingMessage(pendingMessage, answer);
+        setSiteAiStatus("AI \u6b63\u5728\u751f\u6210\u6700\u7ec8\u56de\u7b54\u3002");
+        return;
+      }
+      if (streamEvent.type === "done") {
+        completed = true;
+        answer = streamEvent.answer || answer;
+        const references = streamEvent.references || [];
+        renderSiteAiMessage(pendingMessage, "assistant", answer || "\u6682\u65e0\u53ef\u5c55\u793a\u7684\u56de\u7b54\u3002", references, "answer");
+        setSiteAiStatus(`\u56de\u7b54\u5df2\u5b8c\u6210\uff0c\u5171 ${references.length} \u6761\u5f15\u7528\u6765\u6e90\u3002`);
+        $("siteAiMessages").scrollTop = $("siteAiMessages").scrollHeight;
+        return;
+      }
+      if (streamEvent.type === "error") {
+        throw new Error(streamEvent.message || text.aiRequestFailed);
+      }
+    });
+    if (!completed) throw new Error("Streaming response ended before completion");
   } catch (err) {
     renderSiteAiMessage(pendingMessage, "assistant", text.aiRequestFailed, [], "error", "\u8bf7\u6c42\u672a\u5b8c\u6210");
+    setSiteAiStatus("AI \u56de\u7b54\u672a\u5b8c\u6210\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002");
     input.value = message;
   } finally {
     setSiteAiBusy(false);

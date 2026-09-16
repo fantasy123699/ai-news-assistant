@@ -308,3 +308,25 @@
 
 - Streaming answers and production telemetry remain separate modules.
 - The overall project remains conditional for broad public exposure until session hardening, rate limiting, HTTPS, backup/restore, and monitoring are verified.
+
+## 2026-09-16 - Real final-answer streaming
+
+### Scope
+
+- Added native Ollama and OpenAI-compatible streaming without changing the existing `/ai/chat` contract.
+- Added a chunk-safe final-answer filter and explicitly separated Ollama thinking output from the streamed answer.
+- Added an authenticated NDJSON endpoint whose final event carries citations and retrieval metadata.
+- Updated the assistant drawer to progressively render final text, prevent duplicate submission, announce meaningful status transitions, preserve input on failure, and avoid fighting intentional user scrolling.
+- Documented the protocol, retry trade-off, trust boundary, and scoped readiness review.
+
+### Verification
+
+- Captured retrieval, real progressive `AI 正在生成`, final-answer, and citation-complete states in the Codex in-app browser with DeepSeek-R1 through Ollama.
+- Confirmed no reasoning content appeared during or after generation.
+- Added split-tag, Chinese-marker, plain-answer fallback, and provider-final-channel regression coverage.
+- Reran all 36 unit tests, JavaScript syntax, Python compilation, citation evaluation, Compose/OpenAPI/dependency checks, container health, and application-log review before commit.
+
+### Follow-up
+
+- Add token/latency/error telemetry as a separate observability module.
+- Keep broad public exposure conditional on rate limiting, session hardening, HTTPS, backup/restore, and capacity evidence.

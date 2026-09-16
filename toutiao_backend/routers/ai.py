@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import json
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.db_cond import get_db
@@ -10,14 +15,22 @@ from utils.local_llm import (
     LOCAL_LLM_BASE_URL,
     LOCAL_LLM_MODEL,
     LOCAL_LLM_PROVIDER,
+    FinalAnswerStreamFilter,
     chat_with_local_llm,
     extract_final_answer,
+    stream_chat_with_local_llm,
 )
 from utils.prompts import SITE_NEWS_CHAT_PROMPT_VERSION, build_site_news_chat_messages
 from utils.retrieval import detect_category, extract_search_terms
 
 
 router = APIRouter(prefix="/ai", tags=["AI"])
+logger = logging.getLogger(__name__)
+
+
+def encode_stream_event(event_type: str, **payload) -> str:
+    event = {"type": event_type, **payload}
+    return json.dumps(jsonable_encoder(event), ensure_ascii=False) + "\n"
 
 
 def row_to_dict(row):
@@ -119,6 +132,110 @@ async def site_news_chat(
             "category": category_name,
         },
     }
+
+
+@router.post("/chat/stream")
+async def site_news_chat_stream(
+    data: SiteChatRequest,
+    request: Request,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    limit = min(max(data.limit or 6, 1), 10)
+    category_name = detect_category(data.message)
+    search_terms = extract_search_terms(data.message)
+    rows = await ai_crud.search_news_for_chat(
+        db,
+        search_terms=search_terms,
+        category_name=category_name,
+        limit=limit,
+    )
+
+    references = []
+    for row in rows:
+        item = row_to_dict(row)
+        item.pop("content", None)
+        item["citation_id"] = f"来源{len(references) + 1}"
+        references.append(item)
+
+    retrieval = {
+        "search_terms": search_terms,
+        "category": category_name,
+    }
+
+    async def generate():
+        if not rows:
+            answer = "新闻库中暂时没有找到可以参考的新闻。"
+            await ai_crud.save_ai_chat(db, current_user.id, data.message, answer)
+            yield encode_stream_event("delta", content=answer)
+            yield encode_stream_event(
+                "done",
+                answer=answer,
+                references=[],
+                prompt_version=SITE_NEWS_CHAT_PROMPT_VERSION,
+                retrieval=retrieval,
+            )
+            return
+
+        messages = build_site_news_chat_messages(
+            data.message,
+            build_news_context(rows),
+        )
+        answer_filter = FinalAnswerStreamFilter()
+        answer_parts = []
+
+        try:
+            async for raw_chunk in stream_chat_with_local_llm(messages):
+                if await request.is_disconnected():
+                    return
+                content = (
+                    answer_filter.feed_final(raw_chunk["content"])
+                    if raw_chunk["is_final"]
+                    else answer_filter.feed(raw_chunk["content"])
+                )
+                if content:
+                    answer_parts.append(content)
+                    yield encode_stream_event("delta", content=content)
+
+            tail = answer_filter.finish()
+            if tail:
+                answer_parts.append(tail)
+                yield encode_stream_event("delta", content=tail)
+
+            answer = "".join(answer_parts).strip()
+            if not answer:
+                raise HTTPException(status_code=502, detail="LLM service returned no final answer")
+
+            await ai_crud.save_ai_chat(db, current_user.id, data.message, answer)
+            yield encode_stream_event(
+                "done",
+                answer=answer,
+                references=references,
+                prompt_version=SITE_NEWS_CHAT_PROMPT_VERSION,
+                retrieval=retrieval,
+            )
+        except HTTPException as exc:
+            logger.warning("site_chat_stream_failed status=%s", exc.status_code)
+            yield encode_stream_event(
+                "error",
+                message="AI 服务暂时不可用，请稍后重试。",
+            )
+        except Exception:
+            logger.exception("site_chat_stream_failed")
+            yield encode_stream_event(
+                "error",
+                message="AI 服务暂时不可用，请稍后重试。",
+            )
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post("/news/summary")
