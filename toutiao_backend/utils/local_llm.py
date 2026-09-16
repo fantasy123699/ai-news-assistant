@@ -15,6 +15,7 @@ from config.settings import (
     LOCAL_LLM_RETRY_BACKOFF_SECONDS,
     LOCAL_LLM_TIMEOUT_SECONDS,
 )
+from utils.llm_telemetry import classify_llm_error, record_llm_event
 
 
 logger = logging.getLogger(__name__)
@@ -320,25 +321,36 @@ async def stream_chat_with_local_llm(messages: list[dict]):
     )
 
 
-async def chat_with_local_llm(messages: list[dict]):
+async def chat_with_local_llm(messages: list[dict], *, operation: str = "chat"):
     provider = LOCAL_LLM_PROVIDER.lower()
     started_at = time.perf_counter()
 
-    if provider == "ollama":
-        content = await _ollama_chat(messages)
-    elif provider in {"openai", "lmstudio", "vllm"}:
-        content = await _openai_compatible_chat(messages)
-    else:
-        raise HTTPException(status_code=500, detail=f"Unsupported local LLM provider: {provider}")
+    try:
+        if provider == "ollama":
+            content = await _ollama_chat(messages)
+        elif provider in {"openai", "lmstudio", "vllm"}:
+            content = await _openai_compatible_chat(messages)
+        else:
+            raise HTTPException(status_code=500, detail=f"Unsupported local LLM provider: {provider}")
 
-    if not isinstance(content, str) or not content.strip():
-        raise HTTPException(status_code=502, detail="LLM service returned empty content")
+        if not isinstance(content, str) or not content.strip():
+            raise HTTPException(status_code=502, detail="LLM service returned empty content")
+    except Exception as exc:
+        record_llm_event(
+            operation=operation,
+            provider=provider,
+            model=LOCAL_LLM_MODEL,
+            outcome="failure",
+            latency_ms=round((time.perf_counter() - started_at) * 1000),
+            error_type=classify_llm_error(exc),
+        )
+        raise
 
-    latency_ms = round((time.perf_counter() - started_at) * 1000)
-    logger.info(
-        "llm_request_success provider=%s model=%s latency_ms=%s",
-        provider,
-        LOCAL_LLM_MODEL,
-        latency_ms,
+    record_llm_event(
+        operation=operation,
+        provider=provider,
+        model=LOCAL_LLM_MODEL,
+        outcome="success",
+        latency_ms=round((time.perf_counter() - started_at) * 1000),
     )
     return content.strip()

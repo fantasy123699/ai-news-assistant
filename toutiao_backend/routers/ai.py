@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
@@ -9,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_cond import get_db
 from crud import ai as ai_crud
 from crud import news as news_crud
-from routers.user import get_current_user
+from routers.user import get_current_user, require_admin
 from schemas.ai import NewsChatRequest, NewsSummaryRequest, RecommendRequest, SiteChatRequest
 from utils.local_llm import (
     LOCAL_LLM_BASE_URL,
@@ -19,6 +21,11 @@ from utils.local_llm import (
     chat_with_local_llm,
     extract_final_answer,
     stream_chat_with_local_llm,
+)
+from utils.llm_telemetry import (
+    classify_llm_error,
+    get_llm_telemetry_snapshot,
+    record_llm_event,
 )
 from utils.prompts import SITE_NEWS_CHAT_PROMPT_VERSION, build_site_news_chat_messages
 from utils.retrieval import detect_category, extract_search_terms
@@ -76,6 +83,11 @@ async def ai_config():
     }
 
 
+@router.get("/telemetry")
+async def ai_telemetry(current_user=Depends(require_admin)):
+    return get_llm_telemetry_snapshot()
+
+
 @router.post("/chat")
 async def site_news_chat(
     data: SiteChatRequest,
@@ -116,7 +128,7 @@ async def site_news_chat(
         data.message,
         build_news_context(rows),
     )
-    raw_answer = await chat_with_local_llm(messages)
+    raw_answer = await chat_with_local_llm(messages, operation="site_chat")
     answer = extract_final_answer(raw_answer)
     if not answer:
         raise HTTPException(status_code=502, detail="LLM service returned no final answer")
@@ -183,10 +195,20 @@ async def site_news_chat_stream(
         )
         answer_filter = FinalAnswerStreamFilter()
         answer_parts = []
+        started_at = time.perf_counter()
+        ttft_ms = None
 
         try:
             async for raw_chunk in stream_chat_with_local_llm(messages):
                 if await request.is_disconnected():
+                    record_llm_event(
+                        operation="site_chat_stream",
+                        provider=LOCAL_LLM_PROVIDER,
+                        model=LOCAL_LLM_MODEL,
+                        outcome="cancelled",
+                        latency_ms=round((time.perf_counter() - started_at) * 1000),
+                        ttft_ms=ttft_ms,
+                    )
                     return
                 content = (
                     answer_filter.feed_final(raw_chunk["content"])
@@ -194,11 +216,15 @@ async def site_news_chat_stream(
                     else answer_filter.feed(raw_chunk["content"])
                 )
                 if content:
+                    if ttft_ms is None:
+                        ttft_ms = round((time.perf_counter() - started_at) * 1000)
                     answer_parts.append(content)
                     yield encode_stream_event("delta", content=content)
 
             tail = answer_filter.finish()
             if tail:
+                if ttft_ms is None:
+                    ttft_ms = round((time.perf_counter() - started_at) * 1000)
                 answer_parts.append(tail)
                 yield encode_stream_event("delta", content=tail)
 
@@ -207,6 +233,14 @@ async def site_news_chat_stream(
                 raise HTTPException(status_code=502, detail="LLM service returned no final answer")
 
             await ai_crud.save_ai_chat(db, current_user.id, data.message, answer)
+            record_llm_event(
+                operation="site_chat_stream",
+                provider=LOCAL_LLM_PROVIDER,
+                model=LOCAL_LLM_MODEL,
+                outcome="success",
+                latency_ms=round((time.perf_counter() - started_at) * 1000),
+                ttft_ms=ttft_ms,
+            )
             yield encode_stream_event(
                 "done",
                 answer=answer,
@@ -214,13 +248,41 @@ async def site_news_chat_stream(
                 prompt_version=SITE_NEWS_CHAT_PROMPT_VERSION,
                 retrieval=retrieval,
             )
+        except asyncio.CancelledError:
+            record_llm_event(
+                operation="site_chat_stream",
+                provider=LOCAL_LLM_PROVIDER,
+                model=LOCAL_LLM_MODEL,
+                outcome="cancelled",
+                latency_ms=round((time.perf_counter() - started_at) * 1000),
+                ttft_ms=ttft_ms,
+            )
+            raise
         except HTTPException as exc:
+            record_llm_event(
+                operation="site_chat_stream",
+                provider=LOCAL_LLM_PROVIDER,
+                model=LOCAL_LLM_MODEL,
+                outcome="failure",
+                latency_ms=round((time.perf_counter() - started_at) * 1000),
+                ttft_ms=ttft_ms,
+                error_type=classify_llm_error(exc),
+            )
             logger.warning("site_chat_stream_failed status=%s", exc.status_code)
             yield encode_stream_event(
                 "error",
                 message="AI 服务暂时不可用，请稍后重试。",
             )
-        except Exception:
+        except Exception as exc:
+            record_llm_event(
+                operation="site_chat_stream",
+                provider=LOCAL_LLM_PROVIDER,
+                model=LOCAL_LLM_MODEL,
+                outcome="failure",
+                latency_ms=round((time.perf_counter() - started_at) * 1000),
+                ttft_ms=ttft_ms,
+                error_type=classify_llm_error(exc),
+            )
             logger.exception("site_chat_stream_failed")
             yield encode_stream_event(
                 "error",
@@ -259,10 +321,13 @@ async def summarize_news(
 {build_news_text(news)}
 """
 
-    raw_answer = await chat_with_local_llm([
-        {"role": "system", "content": "你是一个专业的中文新闻编辑助手。"},
-        {"role": "user", "content": prompt},
-    ])
+    raw_answer = await chat_with_local_llm(
+        [
+            {"role": "system", "content": "你是一个专业的中文新闻编辑助手。"},
+            {"role": "user", "content": prompt},
+        ],
+        operation="news_summary",
+    )
     answer = extract_final_answer(raw_answer)
     if not answer:
         raise HTTPException(status_code=502, detail="LLM service returned no final answer")
@@ -295,10 +360,13 @@ async def chat_about_news(
 用户问题：{data.question}
 """
 
-    raw_answer = await chat_with_local_llm([
-        {"role": "system", "content": "你是一个严谨的中文新闻问答助手。"},
-        {"role": "user", "content": prompt},
-    ])
+    raw_answer = await chat_with_local_llm(
+        [
+            {"role": "system", "content": "你是一个严谨的中文新闻问答助手。"},
+            {"role": "user", "content": prompt},
+        ],
+        operation="news_chat",
+    )
     answer = extract_final_answer(raw_answer)
     if not answer:
         raise HTTPException(status_code=502, detail="LLM service returned no final answer")
@@ -345,10 +413,13 @@ async def recommend_news(
 {chr(10).join(context_lines)}
 """
 
-    answer = await chat_with_local_llm([
-        {"role": "system", "content": "你是一个新闻推荐关键词分析助手。"},
-        {"role": "user", "content": prompt},
-    ])
+    answer = await chat_with_local_llm(
+        [
+            {"role": "system", "content": "你是一个新闻推荐关键词分析助手。"},
+            {"role": "user", "content": prompt},
+        ],
+        operation="recommend",
+    )
 
     first_keyword = answer.replace("，", ",").split(",")[0].strip()
     rows = await ai_crud.search_news_for_recommendation(db, keyword=first_keyword, limit=limit)

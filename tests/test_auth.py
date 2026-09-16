@@ -16,6 +16,7 @@ os.environ.setdefault(
 )
 
 from crud.user import hash_password, verify_password
+from routers import ai as ai_routes
 from routers import news as news_routes
 from routers import user as user_routes
 from routers.user import get_access_token, require_admin
@@ -76,6 +77,7 @@ class AuthorizationTests(unittest.IsolatedAsyncioTestCase):
             news_routes.create_news,
             news_routes.update_news,
             news_routes.delete_news,
+            ai_routes.ai_telemetry,
         )
 
         for endpoint in endpoints:

@@ -330,3 +330,23 @@
 
 - Add token/latency/error telemetry as a separate observability module.
 - Keep broad public exposure conditional on rate limiting, session hardening, HTTPS, backup/restore, and capacity evidence.
+
+## 2026-09-16 - Privacy-safe model call telemetry
+
+### Scope
+
+- Added bounded in-process aggregation for model request volume, outcomes, total latency, failure categories, and streaming time to first final-answer text.
+- Added structured `llm_telemetry` JSON log events without prompts, responses, user IDs, or upstream error bodies.
+- Labeled summary, article chat, recommendation, site chat, and streamed site chat operations without changing their existing API behavior.
+- Added an administrator-only aggregate endpoint and documented the 200-event, restart-reset boundary.
+- Kept token and cost metrics out because the configured local-provider responses do not expose a stable usage contract.
+
+### Verification
+
+- Unit tests cover aggregation, P95 calculation, bounded retention, privacy fields, safe failure classification, and the administrator dependency.
+- The full regression suite, citation fixtures, Python compilation, OpenAPI generation, dependency integrity, Compose validation, container health, structured runtime logs, and browser smoke flows are rerun before commit.
+
+### Follow-up
+
+- A public deployment should export logs and metrics to durable storage, aggregate across instances, and attach owned alerts and runbooks.
+- Rate limiting, session hardening, HTTPS, backup/restore, and capacity evidence remain separate release-readiness work.
